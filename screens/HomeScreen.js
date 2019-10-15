@@ -26,33 +26,26 @@ export default class HomeScreen extends React.Component {
   }
 
   componentDidMount() {
-    var userId = firebase.auth().currentUser.uid;
-    return firebase
+    var data_ref = firebase
       .database()
-      .ref('/users/' + userId)
-      .once('value')
-      .then(snapshot => {
-        var curuser =
-          (snapshot.val()) || 'Anonymous';
-        this.setState({ curuser: curuser, loading: false });
-      });
+      .ref()
+      .child('users')
+      .child(firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val(), loading: false });
+    });
   }
-
-  onLogOutPress() {
-    firebase
-      .auth()
-      .signOut()
-      .then(function() {
-        alert('Sign out successful.');
-      })
-      .catch(function(error) {
-        var errorCode = error.code;
-        var errorMessage = error.message;
-        alert(errorCode + ': ' + errorMessage);
-      });
-
-    App.reload();
-  }
+  
+  /*componentDidUpdate() {
+    var data_ref = firebase
+      .database()
+      .ref()
+      .child('users')
+      .child(firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val(), loading: false });
+    });
+  }*/
 
   render() {
     const cur = firebase.auth().currentUser.uid;
@@ -66,14 +59,13 @@ export default class HomeScreen extends React.Component {
             {this.state.loading ? (
               <React.Fragment>
                 <Text style={styles.info}>Loading</Text>
-                <ActivityIndicator size="large" color="white"/>
+                <ActivityIndicator size="large" color="white" />
               </React.Fragment>
             ) : (
               <React.Fragment>
-                <Text style={styles.info}>
+                <Text style={styles.info} key="user_name">
                   Let's Get It, {this.state.curuser.first_name}
                 </Text>
-                <Text onPress={this.onLogOutPress.bind()}>Logout</Text>
               </React.Fragment>
             )}
           </View>

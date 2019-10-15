@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Linking,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import NavigationService from '../navigation/NavigationService';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,27 +29,26 @@ export default class MenuScreen extends React.Component {
   }
 
   componentDidMount() {
-    var userId = firebase.auth().currentUser.uid;
-    return firebase
+    var data_ref = firebase
       .database()
-      .ref('/users/' + userId)
-      .once('value')
-      .then(snapshot => {
-        var curuser = snapshot.val() || 'Anonymous';
-        this.setState({ curuser: curuser, loading: false });
-      });
+      .ref()
+      .child('users')
+      .child(firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val(), loading: false });
+    });
   }
 
   accountClick(curuser) {
-    this.props.navigation.navigate('User');
+    NavigationService.navigate('UserScreen');
   }
 
   mySquadsClick(curuser) {
-    this.props.navigation.navigate('MySquads');
+    NavigationService.navigate('MySquadsScreen');
   }
 
   myInvitesClick(curuser) {
-    this.props.navigation.navigate('MyInvites');
+    NavigationService.navigate('MyInvites');
   }
 
   render() {
@@ -108,15 +108,6 @@ export default class MenuScreen extends React.Component {
                       source={require('assets/icons/invitation.png')}
                     />
                     <Text style={styles.options}>MY INVITES</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity>
-                  <View style={styles.row}>
-                    <Image
-                      style={styles.icon}
-                      source={require('assets/icons/settings.png')}
-                    />
-                    <Text style={styles.options}>SETTINGS</Text>
                   </View>
                 </TouchableOpacity>
               </React.Fragment>

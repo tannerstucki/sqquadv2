@@ -20,15 +20,10 @@ export default class PollScreen extends React.Component {
   }
 
   componentDidMount() {
-    var userId = firebase.auth().currentUser.uid;
-    return firebase
-      .database()
-      .ref('/users/' + userId)
-      .once('value')
-      .then(snapshot => {
-        var curuser = snapshot.val() || 'Anonymous';
-        this.setState({ curuser: curuser, loading: false });
-      });
+    var data_ref = firebase.database().ref('users/' + firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val(), loading: false });
+    });
   }
 
   render() {

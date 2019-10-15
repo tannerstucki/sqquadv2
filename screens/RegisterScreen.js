@@ -32,17 +32,17 @@ class RegisterScreen extends React.Component {
   componentWillUnmount() {}
 
   onRegisterPress() {
-    let my = this;
     firebase
       .auth()
       .createUserWithEmailAndPassword(this.state.email, this.state.password)
-      .then((result) => {
+      .then(result => {
         firebase
           .database()
           .ref('users/' + result.user.uid)
           .set({
             first_name: this.state.first_name,
             last_name: this.state.last_name,
+            email: this.state.email,
             zip: this.state.zip,
           });
       })
@@ -50,7 +50,9 @@ class RegisterScreen extends React.Component {
         NavigationService.navigate('HomeScreen');
       })
       .then(function() {
-        alert('Welcome to Squad! Create a squad or check out your invites to get started.');
+        alert(
+          'Welcome to Squad! Create a squad or check out your invites to get started.'
+        );
       })
       .catch(function(error) {
         var errorCode = error.code;
@@ -64,6 +66,18 @@ class RegisterScreen extends React.Component {
   }
 
   render() {
+    var isEnabled = 'false';
+    var text_color = 'grey';
+    if (
+      (this.state.first_name.length > 0) &
+      (this.state.last_name.length > 0) &
+      (this.state.email.length > 0) &
+      (this.state.zip.length > 0) &
+      (this.state.password.length > 0)
+    ) {
+      isEnabled = '';
+      text_color = 'white';
+    }
     return (
       <LinearGradient
         colors={['#5B4FFF', '#D616CF']}
@@ -105,9 +119,18 @@ class RegisterScreen extends React.Component {
             onChangeText={password => this.setState({ password })}
             value={this.state.password}
           />
-          <TouchableOpacity onPress={this.onRegisterPress.bind(this)}>
+          <TouchableOpacity
+            onPress={this.onRegisterPress.bind(this)}
+            disabled={isEnabled}>
             <View style={styles.customButton}>
-              <Text style={styles.buttonText}>Create Account</Text>
+              <Text
+                style={{
+                  color: text_color,
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                }}>
+                Create Account
+              </Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={this.openLogin.bind(this)}>

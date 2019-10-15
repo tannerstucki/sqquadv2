@@ -16,12 +16,20 @@ import PollScreen from './screens/PollScreen';
 import MessageScreen from './screens/MessageScreen';
 import TaskScreen from './screens/TaskScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
+import UserScreen from './screens/UserScreen';
+import MySquadsScreen from './screens/MySquadsScreen';
+import SquadScreen from './screens/SquadScreen';
+import CreateSquadScreen from './screens/CreateSquadScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
   LoginScreen,
   HomeScreen,
   RegisterScreen,
+  UserScreen,
+  MySquadsScreen,
+  SquadScreen,
+  CreateSquadScreen,
   MenuScreen: {
     screen: MenuScreen,
     navigationOptions({ navigation }) {
