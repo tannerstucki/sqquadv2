@@ -50,23 +50,18 @@ export default class SquadScreen extends React.Component {
   }
 
   openUser(user) {
-    this.props.navigation.navigate('UserScreen', {
-      squadOrganizer: user,
+    NavigationService.navigate('UserScreen', {
+      otherUser: user,
     });
   }
 
-  openCreateInvite(cursquad, curuser) {
-    this.props.navigation.navigate('CreateInvite', {
-      curuser: curuser,
-      cursquad: cursquad,
+  openCreateInvite(cursquad) {
+    NavigationService.navigate('CreateInviteScreen', {
+      cursquad: this.state.cursquad,
     });
   }
 
   render() {
-    /*const { params } = this.props.navigation.state;
-    const cursquad = params.cursquad;
-    const curuser = params.curuser;*/
-
     return (
       <React.Fragment>
         <LinearGradient
@@ -81,28 +76,31 @@ export default class SquadScreen extends React.Component {
               </React.Fragment>
             ) : (
               <React.Fragment>
-            <Text style={styles.info}>{this.state.cursquad.name}</Text>
-            <View style={styles.line} />
-            <Text style={styles.generic}>Name</Text>
-            <Text style={styles.info}>{this.state.cursquad.description}</Text>
-            <View style={styles.line} />
-            <Text style={styles.generic}>Description</Text>
-            <Text style={styles.info}>{this.state.cursquad.zip}</Text>
-            <View style={styles.line} />
-            <Text style={styles.generic}>Location</Text>
-            <TouchableOpacity
-              onPress={this.openUser.bind(this, this.state.squadOrganizer)}>
-              <Text style={styles.info}>
-                {this.state.squadOrganizer.first_name}{' '}
-                {this.state.squadOrganizer.last_name}
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.line} />
-            <Text style={styles.generic}>Squad Organizer</Text>
+                <Text style={styles.info}>{this.state.cursquad.name}</Text>
+                <View style={styles.line} />
+                <Text style={styles.generic}>Name</Text>
+                <Text style={styles.info}>
+                  {this.state.cursquad.description}
+                </Text>
+                <View style={styles.line} />
+                <Text style={styles.generic}>Description</Text>
+                <Text style={styles.info}>{this.state.cursquad.zip}</Text>
+                <View style={styles.line} />
+                <Text style={styles.generic}>Location</Text>
+                <TouchableOpacity
+                  onPress={this.openUser.bind(this, this.state.squadOrganizer)}>
+                  <Text style={styles.info}>
+                    {this.state.squadOrganizer.first_name}{' '}
+                    {this.state.squadOrganizer.last_name}
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.line} />
+                <Text style={styles.generic}>Squad Organizer</Text>
               </React.Fragment>
             )}
           </ScrollView>
-          <TouchableOpacity onPress={this.openCreateInvite.bind()}>
+          <TouchableOpacity
+            onPress={this.openCreateInvite.bind(this)}>
             <View style={styles.customButton}>
               <Text style={styles.buttonText}>
                 Invite a Friend to this Squad
@@ -118,7 +116,7 @@ export default class SquadScreen extends React.Component {
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height * .77,
+    height: Dimensions.get('window').height * 0.77,
     alignItems: 'left',
     justifyContent: 'left',
   },

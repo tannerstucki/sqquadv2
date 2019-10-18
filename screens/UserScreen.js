@@ -25,23 +25,23 @@ export default class UserScreen extends React.Component {
     super(props);
     this.state = {
       curuser: '',
-      squadOrganizer: '',
+      otherUser: false,
     };
   }
 
   componentDidMount() {
     const { params } = this.props.navigation.state;
     if (params) {
-      const squadOrganizer = params.squadOrganizer;
-      this.setState({ squadOrganizer: squadOrganizer });
+      const otherUser = params.otherUser;
+      this.setState({ otherUser: true, curuser: otherUser });
+    } else {
+      var data_ref = firebase
+        .database()
+        .ref('users/' + firebase.auth().currentUser.uid);
+      data_ref.on('value', snapshot => {
+        this.setState({ curuser: snapshot.val(), loading: false });
+      });
     }
-
-    var data_ref = firebase
-      .database()
-      .ref('users/' + firebase.auth().currentUser.uid);
-    data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val(), loading: false });
-    });
   }
 
   onLogoutPress() {
@@ -91,7 +91,7 @@ export default class UserScreen extends React.Component {
                 <Text style={styles.info}>{this.state.curuser.zip}</Text>
                 <View style={styles.line} />
                 <Text style={styles.generic}>Location</Text>
-                {!this.state.squadOrganizer ? (
+                {!this.state.otherUser ? (
                   <TouchableOpacity onPress={this.onLogoutPress.bind(this)}>
                     <View style={styles.customButton}>
                       <Text style={styles.buttonText}>Log Out</Text>

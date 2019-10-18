@@ -48,7 +48,7 @@ export default class MenuScreen extends React.Component {
   }
 
   myInvitesClick(curuser) {
-    NavigationService.navigate('MyInvites');
+    NavigationService.navigate('MyInvitesScreen');
   }
 
   render() {

@@ -20,6 +20,9 @@ import UserScreen from './screens/UserScreen';
 import MySquadsScreen from './screens/MySquadsScreen';
 import SquadScreen from './screens/SquadScreen';
 import CreateSquadScreen from './screens/CreateSquadScreen';
+import MyInvitesScreen from './screens/MyInvitesScreen';
+import InviteScreen from './screens/InviteScreen';
+import CreateInviteScreen from './screens/CreateInviteScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -30,6 +33,9 @@ const RootStackNavigator = createStackNavigator({
   MySquadsScreen,
   SquadScreen,
   CreateSquadScreen,
+  MyInvitesScreen,
+  InviteScreen,
+  CreateInviteScreen,
   MenuScreen: {
     screen: MenuScreen,
     navigationOptions({ navigation }) {

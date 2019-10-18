@@ -16,57 +16,63 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { createStackNavigator } from 'react-navigation';
 import NavigationService from '../navigation/NavigationService';
 
-export default class MySquadsScreen extends React.Component {
+export default class MyInvitesScreen extends React.Component {
   static navigationOptions = {
-    title: 'My Squads',
+    title: 'My Invites',
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      data: [],
+      data: '',
       loading: true,
-      noSquads: true,
+      noInvites: true,
     };
   }
 
   componentDidMount() {
     const rootRef = firebase.database().ref();
-    const usersquadRef = rootRef.child('usersquad');
-    const squadsRef = rootRef.child('squads');
-    var squad_array = [];
+    const invitesRef = rootRef.child('invites');
+    var invite_array = [];
+    var curemail = '';
 
-    usersquadRef
-      .orderByChild('user_id')
-      .equalTo(firebase.auth().currentUser.uid)
-      .on('child_added', snapshot => {
-        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
-        squadRef.once('value', snapshot => {
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          squad_array.push(item);
-          this.setState({ noSquads: false, data: squad_array });
-        });
+    var email_ref = firebase
+      .database()
+      .ref('users/' + firebase.auth().currentUser.uid);
+    email_ref
+      .on('value', snapshot => {
+        curemail = snapshot.val().email;
       })
       .bind(this);
-    //this.setState({ data: squad_array, loading: false });
+    var data_ref = firebase
+      .database()
+      .ref('invites/')
+      .orderByChild('acceptor_email')
+      .equalTo(curemail)
+      .on('child_added', snapshot => {
+        var item = snapshot.val();
+        item.key = snapshot.key;
+        invite_array.push(item);
+        this.setState({ noInvites: false, data: invite_array });
+      })
+      .bind(this);
     this.setState({ loading: false });
-
-    //this.demoAsyncCall().then(() => this.setState({ data: squad_array, loading: false }));
   }
 
   /*demoAsyncCall() {
     return new Promise(resolve => setTimeout(() => resolve(), 200));
   }*/
 
-  openSquad(cursquad) {
-    NavigationService.navigate('SquadScreen', {
-      cursquad: cursquad,
-    });
+  openInvite(curinvite, curuser) {
+    NavigationService.navigate('InviteScreen', {
+      curinvite: curinvite,
+      });
   }
 
-  openCreateSquad() {
-    NavigationService.navigate('CreateSquadScreen');
+  openCreateInvite(curuser) {
+    NavigationService.navigate('CreateInviteScreen', {
+      cursquad: null,
+      });
   }
 
   render() {
@@ -86,14 +92,14 @@ export default class MySquadsScreen extends React.Component {
               </React.Fragment>
             ) : (
               <View style={styles.container}>
-                <Text>{this.state.noSquads}</Text>
-                {this.state.noSquads == true ? (
+                <Text>{this.state.noInvites}</Text>
+                {this.state.noInvites == true ? (
                   <React.Fragment>
-                    <Text style={styles.noSquads}>
-                      Sorry, you have no squads.
+                    <Text style={styles.noInvites}>
+                      Sorry, you have no invites.
                     </Text>
-                    <Text style={styles.noSquads}>
-                      Create or join one to get started!
+                    <Text style={styles.noInvites}>
+                      Message the squad organizer to get your invite or invite others to your squads!
                     </Text>
                   </React.Fragment>
                 ) : null}
@@ -102,16 +108,16 @@ export default class MySquadsScreen extends React.Component {
                   renderItem={({ item }) => (
                     <React.Fragment>
                       <TouchableOpacity
-                        onPress={this.openSquad.bind(this, item)}>
-                        <Text style={styles.info}>{item.name} </Text>
+                        onPress={this.openInvite.bind(this, item)}>
+                        <Text style={styles.info}>{item.squad_name} </Text>
                       </TouchableOpacity>
                       <View style={styles.line} />
                     </React.Fragment>
                   )}
                 />
-                <TouchableOpacity onPress={this.openCreateSquad.bind(this)}>
+                <TouchableOpacity onPress={this.openCreateInvite.bind(this)}>
                   <View style={styles.customButton}>
-                    <Text style={styles.buttonText}>Create New Squad</Text>
+                    <Text style={styles.buttonText}>Invite a Friend</Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -144,7 +150,7 @@ const styles = StyleSheet.create({
     color: 'white',
     marginTop: 20,
   },
-  noSquads: {
+  noInvites: {
     fontSize: 20,
     padding: 10,
     marginLeft: Dimensions.get('window').width * 0.045,
