@@ -1,6 +1,12 @@
 import React from 'react';
 import * as firebase from 'firebase';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  Dimensions,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import NavigationService from '../navigation/NavigationService';
 
@@ -22,7 +28,7 @@ class LoadingScreen extends React.Component {
   render() {
     return (
       <LinearGradient
-        colors={['#5B4FFF', '#D616CF']}
+        colors={['#5B4FFF', '#51FFE8']}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 1 }}>
         <View style={styles.container}>
@@ -38,8 +44,14 @@ export default LoadingScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    height: Dimensions.get('window').height,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  info: {
+    fontSize: 18,
+    padding: 16,
+    fontWeight: 'bold',
+    color: 'white',
   },
 });

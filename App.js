@@ -4,6 +4,7 @@ import { createAppContainer } from 'react-navigation';
 import { createStackNavigator, HeaderBackButton } from 'react-navigation-stack';
 import { Text, StyleSheet, View } from 'react-native';
 import { NavigationActions } from 'react-navigation';
+import { GiftedChat } from 'react-native-gifted-chat';
 
 import ApiKeys from './constants/ApiKeys';
 import NavigationService from './navigation/NavigationService';
@@ -13,7 +14,7 @@ import HomeScreen from './screens/HomeScreen';
 import LoadingScreen from './screens/LoadingScreen';
 import MenuScreen from './screens/MenuScreen';
 import PollScreen from './screens/PollScreen';
-import MessageScreen from './screens/MessageScreen';
+import MyThreadsScreen from './screens/MyThreadsScreen';
 import TaskScreen from './screens/TaskScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import UserScreen from './screens/UserScreen';
@@ -23,6 +24,8 @@ import CreateSquadScreen from './screens/CreateSquadScreen';
 import MyInvitesScreen from './screens/MyInvitesScreen';
 import InviteScreen from './screens/InviteScreen';
 import CreateInviteScreen from './screens/CreateInviteScreen';
+import ThreadScreen from './screens/ThreadScreen';
+
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -36,6 +39,7 @@ const RootStackNavigator = createStackNavigator({
   MyInvitesScreen,
   InviteScreen,
   CreateInviteScreen,
+  ThreadScreen,
   MenuScreen: {
     screen: MenuScreen,
     navigationOptions({ navigation }) {
@@ -62,8 +66,8 @@ const RootStackNavigator = createStackNavigator({
       };
     },
   },
-  MessageScreen: {
-    screen: MessageScreen,
+  MyThreadsScreen: {
+    screen: MyThreadsScreen,
     navigationOptions({ navigation }) {
       return {
         headerLeft: (

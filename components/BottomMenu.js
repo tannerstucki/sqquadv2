@@ -26,11 +26,11 @@ class BottomMenu extends React.Component {
   }
 
   chatClick(curuser) {
-    NavigationService.navigate('MessageScreen');
+    NavigationService.navigate('MyThreadsScreen');
   }
 
   tasksClick(curuser) {
-    NavigationService.navigate('TaskScreen');
+    NavigationService.navigate('ThreadScreen');
   }
 
   pollsClick(curuser) {
