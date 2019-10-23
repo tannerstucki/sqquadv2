@@ -54,7 +54,7 @@ export default class ThreadScreen extends React.Component {
 
     messagesRef
       .orderByChild('thread')
-      .equalTo('tester')
+      .equalTo('tester1')
       .on('child_added', snapshot => {
         const { createdAt, text, user } = snapshot.val();
         const { key: _id } = snapshot;
@@ -73,7 +73,7 @@ export default class ThreadScreen extends React.Component {
   onSend(messages) {
     for (let i = 0; i < messages.length; i++) {
       const { text, user, createdAt } = messages[i];
-      const thread = 'tester';
+      const thread = 'tester1';
       user.name = this.state.curuser.first_name + " " + this.state.curuser.last_name;
       const message = {
         text,

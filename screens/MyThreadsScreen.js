@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   StyleSheet,
+  FlatList,
 } from 'react-native';
 import BottomMenu from '../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,10 +29,30 @@ export default class MyThreadsScreen extends React.Component {
     };
   }
 
+  pushThread(val) {
+    var switchArray = this.state.threads;
+    var index = switchArray.findIndex(obj => obj.thread === val.thread);
+    if (index !== -1) {
+      switchArray.splice(index, 1);
+      switchArray.unshift(val);
+      this.setState({ threads: switchArray });
+    } else {
+      switchArray.push(val);
+      this.setState({ threads: switchArray });
+    }
+  }
+
   componentDidMount() {
     const rootRef = firebase.database().ref();
     const messagesRef = rootRef.child('messages');
     const usersRef = rootRef.child('users');
+
+    var user_ref = firebase
+      .database()
+      .ref('users/' + firebase.auth().currentUser.uid);
+    user_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val() });
+    });
 
     var data_ref = firebase
       .database()
@@ -43,7 +64,7 @@ export default class MyThreadsScreen extends React.Component {
         .equalTo(snapshot.val())
         .limitToLast(1)
         .on('child_added', snapshot => {
-          console.log(snapshot.val());
+          this.pushThread(snapshot.val());
         });
     });
     this.setState({ loading: false });
@@ -56,27 +77,40 @@ export default class MyThreadsScreen extends React.Component {
           colors={['#5B4FFF', '#51FFE8']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 1 }}>
-          <View
-            style={{
-              height: Dimensions.get('window').height * 0.8,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
+          <View style={styles.fill}>
             {this.state.loading ? (
               <React.Fragment>
                 <Text style={styles.info}>Loading</Text>
                 <ActivityIndicator size="large" color="white" />
               </React.Fragment>
             ) : (
-              <Text
-                style={{
-                  fontSize: 18,
-                  padding: 16,
-                  fontWeight: 'bold',
-                  color: 'white',
-                }}>
-                Messages Screen
-              </Text>
+              <React.Fragment>
+                <FlatList
+                  data={this.state.threads}
+                  extraData={this.state}
+                  renderItem={({ item }) => (
+                    <React.Fragment>
+                      <TouchableOpacity /*onPress={this.openSquad.bind(this, item)}*/
+                      >
+                        {item.user._id === firebase.auth().currentUser.uid ? (
+                          <Text style={styles.info}>You: {item.text}</Text>
+                        ) : (
+                          <Text style={styles.info}>
+                            {item.user.name}: {item.text}
+                          </Text>
+                        )}
+                        <Text style={styles.info}>
+                          {new Date(parseInt(item.createdAt)).toLocaleString(
+                            'en-US',
+                            { timeZone: 'America/Los_Angeles' }
+                          )}
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={styles.line} />
+                    </React.Fragment>
+                  )}
+                />
+              </React.Fragment>
             )}
           </View>
         </LinearGradient>
@@ -87,10 +121,22 @@ export default class MyThreadsScreen extends React.Component {
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    height: Dimensions.get('window').height * 0.75,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Dimensions.get('window').height * 0.05,
+  },
   info: {
-    fontSize: 18,
+    fontSize: 15,
     padding: 16,
     fontWeight: 'bold',
     color: 'white',
+  },
+  line: {
+    backgroundColor: '#E8E8E8',
+    height: 1,
+    width: Dimensions.get('window').width * 0.9,
+    alignSelf: 'center',
   },
 });
