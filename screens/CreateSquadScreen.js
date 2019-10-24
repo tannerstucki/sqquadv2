@@ -58,9 +58,9 @@ export default class CreateSquadScreen extends React.Component {
       .then(snapshot => {
         firebase
           .database()
-          .ref('usersquad/')
+          .ref('users/' + firebase.auth().currentUser.uid)
+          .child('squads')
           .push({
-            user_id: firebase.auth().currentUser.uid,
             squad_id: snapshot.key,
           });
       })
@@ -171,11 +171,37 @@ const styles = StyleSheet.create({
     marginBottom: Dimensions.get('window').height * 0.1,
     alignSelf: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    padding: 5,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
 });
+
+//old onCreatePress
+/*var squad_post = firebase
+      .database()
+      .ref('squads/')
+      .push({
+        name: this.state.name,
+        description: this.state.description,
+        organizer_id: firebase.auth().currentUser.uid,
+        zip: this.state.zip,
+      })
+      .then(snapshot => {
+        firebase
+          .database()
+          .ref('usersquad/')
+          .push({
+            user_id: firebase.auth().currentUser.uid,
+            squad_id: snapshot.key,
+          });
+      })
+      .then(function() {
+        NavigationService.navigate('MenuScreen');
+      })
+      .then(function() {
+        alert(
+          'Squad successfully created. Send out some invites and get rolling!'
+        );
+      })
+      .catch(function(error) {
+        var errorCode = error.code;
+        var errorMessage = error.message;
+        alert(errorCode + ': ' + errorMessage);
+      });*/

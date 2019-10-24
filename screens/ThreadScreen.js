@@ -22,6 +22,7 @@ export default class ThreadScreen extends React.Component {
   state = {
     messages: [],
     curuser: '',
+    curthread: '',
   };
 
   parse = snapshot => {
@@ -38,6 +39,10 @@ export default class ThreadScreen extends React.Component {
   };
 
   componentDidMount() {
+    const { params } = this.props.navigation.state;
+    const curthread = params.curthread;
+    this.setState({ curthread: curthread });
+
     const rootRef = firebase.database().ref();
     const messagesRef = rootRef.child('messages');
     const usersRef = rootRef.child('users');
@@ -54,7 +59,7 @@ export default class ThreadScreen extends React.Component {
 
     messagesRef
       .orderByChild('thread')
-      .equalTo('tester1')
+      .equalTo(curthread.thread)
       .on('child_added', snapshot => {
         const { createdAt, text, user } = snapshot.val();
         const { key: _id } = snapshot;
@@ -73,7 +78,7 @@ export default class ThreadScreen extends React.Component {
   onSend(messages) {
     for (let i = 0; i < messages.length; i++) {
       const { text, user, createdAt } = messages[i];
-      const thread = 'tester1';
+      const thread = this.state.curthread.thread;
       user.name = this.state.curuser.first_name + " " + this.state.curuser.last_name;
       const message = {
         text,

@@ -103,24 +103,26 @@ export default class CreateInviteScreen extends React.Component {
     this.setState({ squad_card_show: true });
 
     const rootRef = firebase.database().ref();
-    const usersquadRef = rootRef.child('usersquad');
     const squadsRef = rootRef.child('squads');
-    var squad_array = [];
+    var squads = [];
 
-    usersquadRef
-      .orderByChild('user_id')
-      .equalTo(firebase.auth().currentUser.uid)
-      .on('child_added', snapshot => {
-        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
-        squadRef.once('value', snapshot => {
+    var data_ref = firebase
+      .database()
+      .ref('users/' + firebase.auth().currentUser.uid)
+      .child('squads');
+    data_ref.on('child_added', snapshot => {
+      squadsRef
+        .child(snapshot.val().squad_id)
+        .orderByChild('name')
+        .on('value', snapshot => {
           var item = snapshot.val();
           item.key = snapshot.key;
-          squad_array.push(item);
-          this.setState({ found_squads: squad_array });
+          squads.unshift(item);
+          this.setState({ found_squads: squads });
         });
-      });
+    });
 
-    if (squad_array.length === 0) {
+    if (squads.length === 0) {
       alert(
         "You don't belong to any squads. Create or join to start inviting friends!"
       );
@@ -464,3 +466,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+//old getSquads
+/*const rootRef = firebase.database().ref();
+    const usersquadRef = rootRef.child('usersquad');
+    const squadsRef = rootRef.child('squads');
+    var squad_array = [];
+
+    usersquadRef
+      .orderByChild('user_id')
+      .equalTo(firebase.auth().currentUser.uid)
+      .on('child_added', snapshot => {
+        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
+        squadRef.once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          squad_array.push(item);
+          this.setState({ found_squads: squad_array });
+        });
+      });*/

@@ -32,32 +32,26 @@ export default class MySquadsScreen extends React.Component {
 
   componentDidMount() {
     const rootRef = firebase.database().ref();
-    const usersquadRef = rootRef.child('usersquad');
     const squadsRef = rootRef.child('squads');
-    var squad_array = [];
+    var squads = [];
 
-    usersquadRef
-      .orderByChild('user_id')
-      .equalTo(firebase.auth().currentUser.uid)
-      .on('child_added', snapshot => {
-        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
-        squadRef.once('value', snapshot => {
+    var data_ref = firebase
+      .database()
+      .ref('users/' + firebase.auth().currentUser.uid)
+      .child('squads');
+    data_ref.on('child_added', snapshot => {
+      squadsRef
+        .child(snapshot.val().squad_id)
+        .orderByChild('name')
+        .on('value', snapshot => {
           var item = snapshot.val();
           item.key = snapshot.key;
-          squad_array.push(item);
-          this.setState({ noSquads: false, data: squad_array });
+          squads.unshift(item);
+          this.setState({ data: squads, noSquads: false });
         });
-      })
-      .bind(this);
-    //this.setState({ data: squad_array, loading: false });
+    });
     this.setState({ loading: false });
-
-    //this.demoAsyncCall().then(() => this.setState({ data: squad_array, loading: false }));
   }
-
-  /*demoAsyncCall() {
-    return new Promise(resolve => setTimeout(() => resolve(), 200));
-  }*/
 
   openSquad(cursquad) {
     NavigationService.navigate('SquadScreen', {
@@ -176,3 +170,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+//old componentWillLoad
+/*const rootRef = firebase.database().ref();
+    const usersquadRef = rootRef.child('usersquad');
+    const squadsRef = rootRef.child('squads');
+    var squad_array = [];
+
+    usersquadRef
+      .orderByChild('user_id')
+      .equalTo(firebase.auth().currentUser.uid)
+      .on('child_added', snapshot => {
+        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
+        squadRef.once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          squad_array.push(item);
+          this.setState({ noSquads: false, data: squad_array });
+        });
+      })
+      .bind(this);
+      this.demoAsyncCall().then(() => this.setState({ data: squad_array, loading: false }));
+    this.setState({ loading: false });*/
+
+//call this to end loading period
+/*demoAsyncCall() {
+    return new Promise(resolve => setTimeout(() => resolve(), 200));
+  }*/

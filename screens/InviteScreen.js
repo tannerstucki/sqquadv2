@@ -69,19 +69,16 @@ export default class InviteScreen extends React.Component {
       sender_id: curinvite.sender_id,
     };
 
-    var postUserSquad = {
-      user_id: firebase.auth().currentUser.uid,
-      squad_id: curinvite.squad_id,
-    };
-
-    var newPostKey = firebase
+    firebase
       .database()
-      .ref()
-      .child('usersquad')
-      .push().key;
+      .ref('users/' + firebase.auth().currentUser.uid)
+      .child('squads')
+      .push({
+        squad_id: curinvite.squad_id,
+      });
+
     var updates = {};
     updates['/invites/' + curinvite.key] = updateData;
-    updates['/usersquad/' + newPostKey] = postUserSquad;
 
     firebase
       .database()
@@ -224,3 +221,36 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
 });
+
+//old accept
+/*var updateData = {
+      squad_name: curinvite.squad_name,
+      acceptor_id: firebase.auth().currentUser.uid,
+      squad_id: curinvite.squad_id,
+      invite_type: curinvite.invite_type,
+      acceptor_email: curinvite.acceptor_email,
+      status: 'accepted',
+      sender_id: curinvite.sender_id,
+    };
+
+    var postUserSquad = {
+      user_id: firebase.auth().currentUser.uid,
+      squad_id: curinvite.squad_id,
+    };
+
+    var newPostKey = firebase
+      .database()
+      .ref()
+      .child('usersquad')
+      .push().key;
+    var updates = {};
+    updates['/invites/' + curinvite.key] = updateData;
+    updates['/usersquad/' + newPostKey] = postUserSquad;
+
+    firebase
+      .database()
+      .ref()
+      .update(updates);
+
+    alert('You joined a new squad!');
+    NavigationService.navigate('MenuScreen');*/
