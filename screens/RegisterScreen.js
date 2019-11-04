@@ -40,10 +40,12 @@ class RegisterScreen extends React.Component {
           .database()
           .ref('users/' + result.user.uid)
           .set({
-            first_name: this.state.first_name,
-            last_name: this.state.last_name,
-            email: this.state.email,
-            zip: this.state.zip,
+            first_name: this.state.first_name.trim(),
+            last_name: this.state.last_name.trim(),
+            first_name_lower: this.state.first_name.toLowerCase().trim(),
+            last_name_lower: this.state.last_name.toLowerCase().trim(),
+            email: this.state.email.toLowerCase().trim(),
+            zip: this.state.zip.trim(),
           });
       })
       .then(function() {
@@ -161,8 +163,9 @@ const styles = StyleSheet.create({
   user_input: {
     height: 40,
     width: 250,
-    borderColor: 'darkgrey',
-    backgroundColor: 'lightgrey',
+    borderColor: 'lightgrey',
+    backgroundColor: 'white',
+    borderRadius: 10,
     borderWidth: 1,
     margin: 10,
     padding: 10,

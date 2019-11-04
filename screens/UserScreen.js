@@ -56,8 +56,6 @@ export default class UserScreen extends React.Component {
         var errorMessage = error.message;
         alert(errorCode + ': ' + errorMessage);
       });
-
-    App.reload();
   }
 
   render() {

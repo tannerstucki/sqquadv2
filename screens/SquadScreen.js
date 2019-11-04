@@ -55,10 +55,26 @@ export default class SquadScreen extends React.Component {
     });
   }
 
-  openCreateInvite(cursquad) {
+  openCreateInvite() {
     NavigationService.navigate('CreateInviteScreen', {
       cursquad: this.state.cursquad,
     });
+  }
+
+  openSquadBoard() {
+    firebase
+      .database()
+      .ref()
+      .child('threads')
+      .orderByChild('squad_id')
+      .equalTo(this.state.cursquad.key)
+      .once('value', snapshot => {
+        NavigationService.navigate('ThreadScreen', {
+          curthread: snapshot.val(),
+          threadName: Object.values(snapshot.val())[0].squad_name,
+          thread_id: Object.keys(snapshot.val())[0],
+        });
+      });
   }
 
   render() {
@@ -99,14 +115,20 @@ export default class SquadScreen extends React.Component {
               </React.Fragment>
             )}
           </ScrollView>
-          <TouchableOpacity
-            onPress={this.openCreateInvite.bind(this)}>
-            <View style={styles.customButton}>
-              <Text style={styles.buttonText}>
-                Invite a Friend to this Squad
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity onPress={this.openCreateInvite.bind(this)}>
+              <View style={styles.customButton}>
+                <Text style={styles.buttonText}>
+                  Invite a Friend to this Squad
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={this.openSquadBoard.bind(this)}>
+              <View style={styles.customButton}>
+                <Text style={styles.buttonText}>Squad Board</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
           {/*Add squad options like invite friend, leave group, etc.*/}
         </LinearGradient>
       </React.Fragment>
@@ -142,13 +164,14 @@ const styles = StyleSheet.create({
   },
   customButton: {
     backgroundColor: 'black',
-    width: Dimensions.get('window').width * 0.5,
+    width: Dimensions.get('window').width * 0.375,
     height: Dimensions.get('window').height * 0.075,
     borderRadius: 15,
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Dimensions.get('window').height * 0.1,
+    marginHorizontal: Dimensions.get('window').width * 0.05,
   },
   buttonText: {
     color: 'white',
@@ -156,5 +179,10 @@ const styles = StyleSheet.create({
     padding: 5,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignContent: 'center',
+    alignSelf: 'center',
   },
 });

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as firebase from 'firebase';
-import { GiftedChat } from 'react-native-gifted-chat';
+import { GiftedChat, Day } from 'react-native-gifted-chat';
 import {
   View,
   Text,
@@ -15,8 +15,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default class ThreadScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Chat',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: navigation.getParam('threadName', 'Chat'),
+    };
   };
 
   state = {
@@ -40,8 +42,10 @@ export default class ThreadScreen extends React.Component {
 
   componentDidMount() {
     const { params } = this.props.navigation.state;
-    const curthread = params.curthread;
-    this.setState({ curthread: curthread });
+    const thread_id = params.thread_id;
+    this.setState({ curthread: thread_id });
+    //const curthread = params.curthread;
+    //this.setState({ curthread: curthread });
 
     const rootRef = firebase.database().ref();
     const messagesRef = rootRef.child('messages');
@@ -54,12 +58,13 @@ export default class ThreadScreen extends React.Component {
       .child('users')
       .child(firebase.auth().currentUser.uid);
     data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val()});
+      this.setState({ curuser: snapshot.val() });
     });
 
     messagesRef
       .orderByChild('thread')
-      .equalTo(curthread.thread)
+      //.equalTo(curthread.thread)
+      .equalTo(thread_id)
       .on('child_added', snapshot => {
         const { createdAt, text, user } = snapshot.val();
         const { key: _id } = snapshot;
@@ -78,8 +83,10 @@ export default class ThreadScreen extends React.Component {
   onSend(messages) {
     for (let i = 0; i < messages.length; i++) {
       const { text, user, createdAt } = messages[i];
-      const thread = this.state.curthread.thread;
-      user.name = this.state.curuser.first_name + " " + this.state.curuser.last_name;
+      //const thread = this.state.curthread.thread;
+      const thread = this.state.curthread;
+      user.name =
+        this.state.curuser.first_name + ' ' + this.state.curuser.last_name;
       const message = {
         text,
         user,
@@ -93,10 +100,14 @@ export default class ThreadScreen extends React.Component {
     }
   }
 
+  renderDay(props) {
+    return <Day {...props} textStyle={{ color: 'white' }} />;
+  }
+
   render() {
     return (
       <LinearGradient
-        colors={['#51FFE8', '#FFFFFF']}
+        colors={['#51FFE8', '#6BB4FF']}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 1 }}>
         <View style={styles.fill}>
@@ -106,6 +117,7 @@ export default class ThreadScreen extends React.Component {
             user={{
               _id: firebase.auth().currentUser.uid,
             }}
+            renderDay={this.renderDay}
           />
         </View>
       </LinearGradient>

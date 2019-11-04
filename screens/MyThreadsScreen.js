@@ -27,6 +27,8 @@ export default class MyThreadsScreen extends React.Component {
       loading: true,
       threads: [],
       maxlimit: 40,
+      threadNames: [],
+      noThreads: true,
     };
   }
 
@@ -39,38 +41,33 @@ export default class MyThreadsScreen extends React.Component {
 
     threadsRef.child(val.thread).on('value', snapshot => {
       if (snapshot.val().squad_id === 'null') {
-        for (let i = 0; i < snapshot.val().users.length; i++) {
-          if (snapshot.val().users[i] !== firebase.auth().currentUser.uid) {
-            usersRef.child(snapshot.val().users[i]).on('value', snapshot => {
-              threadName =
-                threadName +
-                snapshot.val().first_name +
-                ' ' +
-                snapshot.val().last_name;
-            });
+        for (let i = 0; i < Object.keys(snapshot.val().users).length; i++) {
+          if (
+            Object.values(snapshot.val().users)[i].user_id !==
+            firebase.auth().currentUser.uid
+          ) {
+            threadName =
+              threadName + Object.values(snapshot.val().users)[i].name;
           } else {
             //add title for multiple user chats
           }
         }
       } else {
-        squadsRef.child(snapshot.val().squad_id).on('value', snapshot => {
-          threadName = snapshot.val().name;
-        });
+        threadName = snapshot.val().squad_name;
+      }
+      var switchArray = this.state.threads;
+      var index = switchArray.findIndex(obj => obj.thread === val.thread);
+      if (index !== -1) {
+        val.threadName = threadName;
+        switchArray.splice(index, 1);
+        switchArray.unshift(val);
+        this.setState({ threads: switchArray, noThreads: false });
+      } else {
+        val.threadName = threadName;
+        switchArray.push(val);
+        this.setState({ threads: switchArray, noThreads: false });
       }
     });
-
-    var switchArray = this.state.threads;
-    var index = switchArray.findIndex(obj => obj.thread === val.thread);
-    if (index !== -1) {
-      val.threadName = threadName;
-      switchArray.splice(index, 1);
-      switchArray.unshift(val);
-      this.setState({ threads: switchArray });
-    } else {
-      val.threadName = threadName;
-      switchArray.push(val);
-      this.setState({ threads: switchArray });
-    }
   }
 
   componentDidMount() {
@@ -91,7 +88,7 @@ export default class MyThreadsScreen extends React.Component {
     data_ref.on('child_added', snapshot => {
       messagesRef
         .orderByChild('thread')
-        .equalTo(snapshot.val())
+        .equalTo(snapshot.val().thread_id)
         .limitToLast(1)
         .on('child_added', snapshot => {
           this.pushThread(snapshot.val());
@@ -100,10 +97,16 @@ export default class MyThreadsScreen extends React.Component {
     this.setState({ loading: false });
   }
 
-  openThread(curthread){
+  openThread(curthread) {
     NavigationService.navigate('ThreadScreen', {
       curthread: curthread,
-    });    
+      threadName: curthread.threadName,
+      thread_id: curthread.thread,
+    });
+  }
+
+  newMessage() {
+    NavigationService.navigate('CreateThreadScreen', {});
   }
 
   render() {
@@ -121,49 +124,70 @@ export default class MyThreadsScreen extends React.Component {
               </React.Fragment>
             ) : (
               <React.Fragment>
+                {this.state.noThreads == true ? (
+                  <React.Fragment>
+                    <Text style={styles.noThreads}>
+                      Sorry, you have no messages.
+                    </Text>
+                    <Text style={styles.noThreads}>
+                      Join a squad or create a message to get started!
+                    </Text>
+                  </React.Fragment>
+                ) : null}
                 <FlatList
                   data={this.state.threads}
                   extraData={this.state}
                   renderItem={({ item }) => (
                     <React.Fragment>
-                      <TouchableOpacity
-                        onPress={this.openThread.bind(this, item)}>
-                        <Text style={styles.title}>{item.threadName}</Text>
-                        {item.user._id === firebase.auth().currentUser.uid ? (
-                          <Text style={styles.info}>
-                            You:{' '}
-                            {item.text.length > this.state.maxlimit
-                              ? item.text.substring(
-                                  0,
-                                  this.state.maxlimit - 3
-                                ) + '...'
-                              : item.text}
-                          </Text>
-                        ) : (
-                          <Text style={styles.info}>
-                            {item.user.name}:{' '}
-                            {item.text.length > this.state.maxlimit
-                              ? item.text.substring(
-                                  0,
-                                  this.state.maxlimit - 3
-                                ) + '...'
-                              : item.text}
-                          </Text>
-                        )}
-                        <Text style={styles.date}>
-                          {new Date(parseInt(item.createdAt)).toLocaleString(
-                            'en-US',
-                            { timeZone: 'America/Los_Angeles' }
-                          )}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={styles.line} />
+                      {item.user._id !== 'rIjWNJh2YuU0glyJbY9HgkeYwjf1' ? (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.openThread.bind(this, item)}>
+                            <Text style={styles.title}>{item.threadName}</Text>
+                            {item.user._id ===
+                            firebase.auth().currentUser.uid ? (
+                              <Text style={styles.info}>
+                                You:{' '}
+                                {item.text.length > this.state.maxlimit
+                                  ? item.text.substring(
+                                      0,
+                                      this.state.maxlimit - 3
+                                    ) + '...'
+                                  : item.text}
+                              </Text>
+                            ) : (
+                              <Text style={styles.info}>
+                                {item.user.name}:{' '}
+                                {item.text.length > this.state.maxlimit
+                                  ? item.text.substring(
+                                      0,
+                                      this.state.maxlimit - 3
+                                    ) + '...'
+                                  : item.text}
+                              </Text>
+                            )}
+                            <Text style={styles.date}>
+                              {new Date(
+                                parseInt(item.createdAt)
+                              ).toLocaleString('en-US', {
+                                timeZone: 'America/Los_Angeles',
+                              })}
+                            </Text>
+                          </TouchableOpacity>
+                          <View style={styles.line} />
+                        </React.Fragment>
+                      ) : null}
                     </React.Fragment>
                   )}
                   keyExtractor={(item, index) => index.toString()}
                 />
               </React.Fragment>
             )}
+            <TouchableOpacity onPress={this.newMessage.bind(this)}>
+              <View style={styles.customButton}>
+                <Text style={styles.buttonText}>New Message</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
         <BottomMenu curuser={this.state.curuser} />
@@ -174,7 +198,7 @@ export default class MyThreadsScreen extends React.Component {
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height * 0.75,
+    height: Dimensions.get('window').height * 0.78,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Dimensions.get('window').height * 0.02,
@@ -190,7 +214,7 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 13,
     padding: 5,
-    color: 'grey',
+    color: 'lightgrey',
     paddingLeft: 16,
     paddingBottom: 5,
     paddingTop: 0,
@@ -208,5 +232,30 @@ const styles = StyleSheet.create({
     height: 1,
     width: Dimensions.get('window').width * 0.9,
     alignSelf: 'center',
+  },
+  customButton: {
+    backgroundColor: 'black',
+    width: Dimensions.get('window').width * 0.5,
+    height: Dimensions.get('window').height * 0.075,
+    borderRadius: 15,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Dimensions.get('window').height * 0.05,
+    marginTop: Dimensions.get('window').height * 0.1,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  noThreads: {
+    fontSize: 20,
+    padding: 10,
+    marginLeft: Dimensions.get('window').width * 0.045,
+    fontWeight: 'bold',
+    color: 'white',
+    marginTop: 20,
+    textAlign: 'center',
   },
 });

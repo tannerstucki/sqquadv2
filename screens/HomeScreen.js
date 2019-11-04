@@ -6,6 +6,7 @@ import {
   View,
   Dimensions,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import App from '../App';
@@ -63,6 +64,10 @@ export default class HomeScreen extends React.Component {
               </React.Fragment>
             ) : (
               <React.Fragment>
+          <Image
+            style={styles.logo}
+            source={require('../assets/BigWhite.png')}
+          />
                 <Text style={styles.info} key="user_name">
                   Let's Get It, {this.state.curuser.first_name}
                 </Text>
@@ -88,5 +93,11 @@ const styles = StyleSheet.create({
     padding: 16,
     fontWeight: 'bold',
     color: 'white',
+  },
+  logo: {
+    height: Dimensions.get('window').height * 0.2,
+    width: Dimensions.get('window').height * 0.2,
+    alignSelf: 'center',
+    margin: 20,
   },
 });

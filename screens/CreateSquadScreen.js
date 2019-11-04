@@ -50,10 +50,11 @@ export default class CreateSquadScreen extends React.Component {
       .database()
       .ref('squads/')
       .push({
-        name: this.state.name,
+        name: this.state.name.trim(),
+        name_lower: this.state.name.toLowerCase().trim(),
         description: this.state.description,
         organizer_id: firebase.auth().currentUser.uid,
-        zip: this.state.zip,
+        zip: this.state.zip.trim(),
       })
       .then(snapshot => {
         firebase
@@ -62,6 +63,39 @@ export default class CreateSquadScreen extends React.Component {
           .child('squads')
           .push({
             squad_id: snapshot.key,
+          });
+
+        firebase
+          .database()
+          .ref('threads/')
+          .push({
+            squad_id: snapshot.key,
+            squad_name: this.state.name,
+          })
+          .then(snapshot => {
+            firebase
+              .database()
+              .ref('users/' + firebase.auth().currentUser.uid)
+              .child('threads')
+              .push({
+                thread_id: snapshot.key,
+              });
+
+            firebase
+              .database()
+              .ref('messages/')
+              .push({
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                text:
+                  'Welcome to the SquadBoard of the ' +
+                  this.state.name +
+                  ' squad. This is a collaborative space for your squad.',
+                thread: snapshot.key,
+                user: {
+                  _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
+                  name: 'Virtual Manager',
+                },
+              });
           });
       })
       .then(function() {
@@ -154,8 +188,9 @@ const styles = StyleSheet.create({
   user_input: {
     height: 40,
     width: 250,
-    borderColor: 'darkgrey',
-    backgroundColor: 'lightgrey',
+    borderColor: 'lightgrey',
+    backgroundColor: 'white',
+    borderRadius: 10,
     borderWidth: 1,
     margin: 10,
     padding: 10,

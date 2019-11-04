@@ -59,6 +59,15 @@ export default class InviteScreen extends React.Component {
   }
 
   accept(curinvite) {
+    const rootRef = firebase.database().ref();
+    const inviteRef = rootRef.child('invites/' + curinvite.key);
+    const squadRef = rootRef
+      .child('users/' + firebase.auth().currentUser.uid)
+      .child('squads');
+    const threadRef = rootRef
+      .child('users/' + firebase.auth().currentUser.uid)
+      .child('threads');
+
     var updateData = {
       squad_name: curinvite.squad_name,
       acceptor_id: firebase.auth().currentUser.uid,
@@ -69,21 +78,19 @@ export default class InviteScreen extends React.Component {
       sender_id: curinvite.sender_id,
     };
 
+    var curThread = '';
     firebase
       .database()
-      .ref('users/' + firebase.auth().currentUser.uid)
-      .child('squads')
-      .push({
-        squad_id: curinvite.squad_id,
+      .ref('threads')
+      .orderByChild('squad_id')
+      .equalTo(curinvite.squad_id)
+      .on('value', snapshot => {
+        curThread = snapshot.val();
+        threadRef.push({ thread_id: Object.keys(curThread)[0] });
       });
 
-    var updates = {};
-    updates['/invites/' + curinvite.key] = updateData;
-
-    firebase
-      .database()
-      .ref()
-      .update(updates);
+    inviteRef.update(updateData);
+    squadRef.push({ squad_id: curinvite.squad_id });
 
     alert('You joined a new squad!');
     NavigationService.navigate('MenuScreen');
@@ -221,36 +228,3 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
 });
-
-//old accept
-/*var updateData = {
-      squad_name: curinvite.squad_name,
-      acceptor_id: firebase.auth().currentUser.uid,
-      squad_id: curinvite.squad_id,
-      invite_type: curinvite.invite_type,
-      acceptor_email: curinvite.acceptor_email,
-      status: 'accepted',
-      sender_id: curinvite.sender_id,
-    };
-
-    var postUserSquad = {
-      user_id: firebase.auth().currentUser.uid,
-      squad_id: curinvite.squad_id,
-    };
-
-    var newPostKey = firebase
-      .database()
-      .ref()
-      .child('usersquad')
-      .push().key;
-    var updates = {};
-    updates['/invites/' + curinvite.key] = updateData;
-    updates['/usersquad/' + newPostKey] = postUserSquad;
-
-    firebase
-      .database()
-      .ref()
-      .update(updates);
-
-    alert('You joined a new squad!');
-    NavigationService.navigate('MenuScreen');*/

@@ -52,7 +52,6 @@ export default class CreateInviteScreen extends React.Component {
     const { params } = this.props.navigation.state;
     const cursquad = params.cursquad;
     this.setState({ chosen_squad: cursquad });
-    console.log('squad: ' + JSON.stringify(cursquad));
 
     var data_ref = firebase
       .database()
@@ -68,35 +67,53 @@ export default class CreateInviteScreen extends React.Component {
     const rootRef = firebase.database().ref();
     const usersRef = rootRef.child('users');
     var found_users = [];
+    var first_name = this.state.first_name;
 
     var data_ref = firebase
       .database()
       .ref('users/')
-      .orderByChild('last_name')
-      .equalTo(this.state.last_name)
-      .once('child_added', snapshot => {
-        var item = snapshot.val();
-        if (item.first_name == this.state.first_name) {
-          item.key = snapshot.key;
-          found_users.push(item);
+      .orderByChild('last_name_lower')
+      .equalTo(this.state.last_name.toLowerCase().trim())
+      .once('value', snapshot => {
+        if (snapshot.val() === null) {
+          alert(
+            "We couldn't find any users with that name. Invite them by email instead!"
+          );
           this.setState({
-            found_users: found_users,
             search_show: false,
-            found_card_show: true,
+            final_message_show: true,
+            found_user_show: false,
           });
+        } else {
+          var first_name_found = false;
+          snapshot.forEach(snapshot => {
+            var item = snapshot.val();
+            if (
+              item.first_name_lower ==
+              this.state.first_name.toLowerCase().trim()
+            ) {
+              first_name_found = true;
+              item.key = snapshot.key;
+              found_users.push(item);
+              this.setState({
+                found_users: found_users,
+                search_show: false,
+                found_card_show: true,
+              });
+            }
+          });
+          if (first_name_found === false) {
+            alert(
+              "We couldn't find any users with that name. Invite them by email instead!"
+            );
+            this.setState({
+              search_show: false,
+              final_message_show: true,
+              found_user_show: false,
+            });
+          }
         }
       });
-
-    if (found_users.length === 0) {
-      alert(
-        "We couldn't find any users with that name. Invite them by email instead!"
-      );
-      this.setState({
-        search_show: false,
-        final_message_show: true,
-        found_user_show: false,
-      });
-    }
   }
 
   getSquads(user_id) {
@@ -110,23 +127,25 @@ export default class CreateInviteScreen extends React.Component {
       .database()
       .ref('users/' + firebase.auth().currentUser.uid)
       .child('squads');
-    data_ref.on('child_added', snapshot => {
-      squadsRef
-        .child(snapshot.val().squad_id)
-        .orderByChild('name')
-        .on('value', snapshot => {
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          squads.unshift(item);
-          this.setState({ found_squads: squads });
+    data_ref.once('value', snapshot => {
+      if (snapshot.val() === null) {
+        alert(
+          "You don't belong to any squads. Create or join to start inviting friends!"
+        );
+      } else {
+        snapshot.forEach(snapshot => {
+          squadsRef
+            .child(snapshot.val().squad_id)
+            .orderByChild('name')
+            .once('value', snapshot => {
+              var item = snapshot.val();
+              item.key = snapshot.key;
+              squads.unshift(item);
+              this.setState({ found_squads: squads });
+            });
         });
+      }
     });
-
-    if (squads.length === 0) {
-      alert(
-        "You don't belong to any squads. Create or join to start inviting friends!"
-      );
-    }
   }
 
   chooseUser(item) {
@@ -179,7 +198,7 @@ export default class CreateInviteScreen extends React.Component {
       })
       .then(function() {
         alert(
-          "You're invite has been sent. We'll let you know when they accept!"
+          "You're invite has been sent!"
         );
       })
       .catch(function(error) {
@@ -302,7 +321,7 @@ export default class CreateInviteScreen extends React.Component {
                   height: '100%',
                   alignContent: 'center',
                   alignSelf: 'center',
-                  marginTop: '20%',
+                  marginTop: Dimensions.get('window').height * 0.2,
                   position: 'absolute',
                 },
               ]}>
@@ -310,10 +329,12 @@ export default class CreateInviteScreen extends React.Component {
                 You're sending an invite to
               </Text>
               {this.state.found_user_show ? (
-                <Text style={styles.finalMessage}>
-                  {this.state.chosen_user.first_name}{' '}
-                  {this.state.chosen_user.last_name}
-                </Text>
+                <React.Fragment>
+                  <Text style={styles.finalMessage}>
+                    {this.state.chosen_user.first_name}{' '}
+                    {this.state.chosen_user.last_name}
+                  </Text>
+                </React.Fragment>
               ) : (
                 <TextInput
                   style={styles.user_input}
@@ -395,8 +416,9 @@ const styles = StyleSheet.create({
   user_input: {
     height: 40,
     width: 250,
-    borderColor: 'darkgrey',
-    backgroundColor: 'lightgrey',
+    borderColor: 'lightgrey',
+    backgroundColor: 'white',
+    borderRadius: 10,
     borderWidth: 1,
     margin: 10,
     padding: 10,
@@ -466,22 +488,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-//old getSquads
-/*const rootRef = firebase.database().ref();
-    const usersquadRef = rootRef.child('usersquad');
-    const squadsRef = rootRef.child('squads');
-    var squad_array = [];
-
-    usersquadRef
-      .orderByChild('user_id')
-      .equalTo(firebase.auth().currentUser.uid)
-      .on('child_added', snapshot => {
-        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
-        squadRef.once('value', snapshot => {
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          squad_array.push(item);
-          this.setState({ found_squads: squad_array });
-        });
-      });*/

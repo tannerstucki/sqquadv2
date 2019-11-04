@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import NavigationService from '../navigation/NavigationService';
@@ -32,6 +33,10 @@ class LoadingScreen extends React.Component {
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 1 }}>
         <View style={styles.container}>
+          <Image
+            style={styles.logo}
+            source={require('../assets/BigWhite.png')}
+          />
           <Text style={styles.info}>Loading</Text>
           <ActivityIndicator size="large" color="white" />
         </View>
@@ -53,5 +58,11 @@ const styles = StyleSheet.create({
     padding: 16,
     fontWeight: 'bold',
     color: 'white',
+  },
+  logo: {
+    height: Dimensions.get('window').height * 0.2,
+    width: Dimensions.get('window').height * 0.2,
+    alignSelf: 'center',
+    margin: 20,
   },
 });

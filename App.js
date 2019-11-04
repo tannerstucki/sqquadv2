@@ -25,7 +25,7 @@ import MyInvitesScreen from './screens/MyInvitesScreen';
 import InviteScreen from './screens/InviteScreen';
 import CreateInviteScreen from './screens/CreateInviteScreen';
 import ThreadScreen from './screens/ThreadScreen';
-
+import CreateThreadScreen from './screens/CreateThreadScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -39,7 +39,20 @@ const RootStackNavigator = createStackNavigator({
   MyInvitesScreen,
   InviteScreen,
   CreateInviteScreen,
-  ThreadScreen,
+  ThreadScreen: {
+    screen: ThreadScreen,
+    navigationOptions({ navigation }) {
+      return {
+        headerLeft: (
+          <HeaderBackButton
+            title="My Messages"
+            onPress={() => navigation.navigate('MyThreadsScreen')}
+          />
+        ),
+      };
+    },
+  },
+  CreateThreadScreen,
   MenuScreen: {
     screen: MenuScreen,
     navigationOptions({ navigation }) {

@@ -103,8 +103,9 @@ const styles = StyleSheet.create({
   user_input: {
     height: 40,
     width: 250,
-    borderColor: 'darkgrey',
-    backgroundColor: 'lightgrey',
+    borderColor: 'lightgrey',
+    backgroundColor: 'white',
+    borderRadius: 10,
     borderWidth: 1,
     margin: 10,
     padding: 10,
