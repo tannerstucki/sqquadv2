@@ -14,6 +14,7 @@ import {
 import BottomMenu from '../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createStackNavigator } from 'react-navigation';
+import { default as UUID } from 'uuid';
 import NavigationService from '../navigation/NavigationService';
 
 export default class InviteScreen extends React.Component {
@@ -26,12 +27,22 @@ export default class InviteScreen extends React.Component {
     this.state = {
       sender: '',
       squad: '',
+      curuser: '',
     };
   }
 
   componentWillMount() {
     const { params } = this.props.navigation.state;
     const curinvite = params.curinvite;
+    
+    var data_ref = firebase
+      .database()
+      .ref()
+      .child('users')
+      .child(firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val() });
+    });
 
     var squad_ref = firebase
       .database()
@@ -92,6 +103,15 @@ export default class InviteScreen extends React.Component {
     inviteRef.update(updateData);
     squadRef.push({ squad_id: curinvite.squad_id });
 
+    firebase
+      .database()
+      .ref('squads/' + curinvite.squad_id)
+      .child('users')
+      .push({
+          user_id: firebase.auth().currentUser.uid,
+          name: this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
+      });
+
     alert('You joined a new squad!');
     NavigationService.navigate('MenuScreen');
   }
@@ -122,7 +142,7 @@ export default class InviteScreen extends React.Component {
   render() {
     const { params } = this.props.navigation.state;
     const curinvite = params.curinvite;
-    const curuser = params.curuser;
+
     return (
       <React.Fragment>
         <LinearGradient
@@ -154,13 +174,13 @@ export default class InviteScreen extends React.Component {
           {curinvite.status == 'new' ? (
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                onPress={this.accept.bind(this, curinvite, curuser)}>
+                onPress={this.accept.bind(this, curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Accept</Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={this.decline.bind(this, curinvite, curuser)}>
+                onPress={this.decline.bind(this, curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Decline</Text>
                 </View>

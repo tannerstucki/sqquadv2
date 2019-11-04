@@ -36,17 +36,6 @@ export default class HomeScreen extends React.Component {
       this.setState({ curuser: snapshot.val(), loading: false });
     });
   }
-  
-  /*componentDidUpdate() {
-    var data_ref = firebase
-      .database()
-      .ref()
-      .child('users')
-      .child(firebase.auth().currentUser.uid);
-    data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val(), loading: false });
-    });
-  }*/
 
   render() {
     const cur = firebase.auth().currentUser.uid;

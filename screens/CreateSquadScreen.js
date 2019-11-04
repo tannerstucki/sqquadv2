@@ -18,6 +18,7 @@ import Constants from 'expo-constants';
 import { createStackNavigator } from 'react-navigation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from 'react-native-paper';
+import { default as UUID } from 'uuid';
 import NavigationService from '../navigation/NavigationService';
 import HomeScreen from './HomeScreen';
 
@@ -35,17 +36,27 @@ export default class CreateSquadScreen extends React.Component {
       zip: '',
       organizer_id: '',
       loading: true,
+      curuser: '',
     };
   }
 
   componentDidMount() {
+    var data_ref = firebase
+      .database()
+      .ref()
+      .child('users')
+      .child(firebase.auth().currentUser.uid);
+    data_ref.on('value', snapshot => {
+      this.setState({ curuser: snapshot.val() });
+    });
+
     this.setState({
       organizer_id: firebase.auth().currentUser.uid,
       loading: false,
     });
   }
 
-  onCreatePress(curuser) {
+  onCreatePress() {
     var squad_post = firebase
       .database()
       .ref('squads/')
@@ -63,6 +74,18 @@ export default class CreateSquadScreen extends React.Component {
           .child('squads')
           .push({
             squad_id: snapshot.key,
+          });
+
+        firebase
+          .database()
+          .ref('squads/' + snapshot.key)
+          .child('users')
+          .push({
+            user_id: firebase.auth().currentUser.uid,
+            name:
+              this.state.curuser.first_name +
+              ' ' +
+              this.state.curuser.last_name,
           });
 
         firebase
