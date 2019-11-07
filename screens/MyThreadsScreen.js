@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Dimensions.get('window').height * 0.05,
-    marginTop: Dimensions.get('window').height * 0.1,
+    marginTop: Dimensions.get('window').height * 0.05,
   },
   buttonText: {
     color: 'white',

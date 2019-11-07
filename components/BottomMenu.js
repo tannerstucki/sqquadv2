@@ -34,7 +34,7 @@ class BottomMenu extends React.Component {
   }
 
   pollsClick(curuser) {
-    NavigationService.navigate('PollScreen');
+    NavigationService.navigate('MyPollsScreen');
   }
 
   timersClick(curuser) {

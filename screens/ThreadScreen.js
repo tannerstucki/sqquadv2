@@ -1,6 +1,11 @@
 import * as React from 'react';
 import * as firebase from 'firebase';
-import { GiftedChat, Day } from 'react-native-gifted-chat';
+import {
+  GiftedChat,
+  Day,
+  InputToolbar,
+  ChatFooter,
+} from 'react-native-gifted-chat';
 import {
   View,
   Text,
@@ -13,6 +18,7 @@ import {
   Header,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import BottomMenu from '../components/BottomMenu';
 
 export default class ThreadScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
@@ -104,23 +110,36 @@ export default class ThreadScreen extends React.Component {
     return <Day {...props} textStyle={{ color: 'white' }} />;
   }
 
+  /*renderInputToolbar(props) {
+    return <InputToolbar {...props} width={{ color: Dimensions.get('window').width }} />;
+  }*/
+
+  messagePress = (context, message) => {
+    alert(message.text);
+  };
+
   render() {
     return (
-      <LinearGradient
-        colors={['#51FFE8', '#6BB4FF']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 1 }}>
-        <View style={styles.fill}>
-          <GiftedChat
-            messages={this.state.messages}
-            onSend={messages => this.onSend(messages)}
-            user={{
-              _id: firebase.auth().currentUser.uid,
-            }}
-            renderDay={this.renderDay}
-          />
-        </View>
-      </LinearGradient>
+      <React.Fragment>
+        <LinearGradient
+          colors={['#51FFE8', '#6BB4FF']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 1 }}>
+          <View style={styles.fill}>
+            <GiftedChat
+              onLongPress={this.messagePress.bind(this)}
+              messages={this.state.messages}
+              onSend={messages => this.onSend(messages)}
+              user={{
+                _id: firebase.auth().currentUser.uid,
+              }}
+              renderDay={this.renderDay}
+              //renderInputToolbar={this.renderInputToolbar}
+            />
+          </View>
+        </LinearGradient>
+        {/*<BottomMenu curuser={this.state.curuser} />*/}
+      </React.Fragment>
     );
   }
 }

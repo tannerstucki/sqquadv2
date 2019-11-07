@@ -170,30 +170,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-//old componentWillLoad
-/*const rootRef = firebase.database().ref();
-    const usersquadRef = rootRef.child('usersquad');
-    const squadsRef = rootRef.child('squads');
-    var squad_array = [];
-
-    usersquadRef
-      .orderByChild('user_id')
-      .equalTo(firebase.auth().currentUser.uid)
-      .on('child_added', snapshot => {
-        let squadRef = squadsRef.child(snapshot.child('squad_id').val());
-        squadRef.once('value', snapshot => {
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          squad_array.push(item);
-          this.setState({ noSquads: false, data: squad_array });
-        });
-      })
-      .bind(this);
-      this.demoAsyncCall().then(() => this.setState({ data: squad_array, loading: false }));
-    this.setState({ loading: false });*/
-
-//call this to end loading period
-/*demoAsyncCall() {
-    return new Promise(resolve => setTimeout(() => resolve(), 200));
-  }*/
