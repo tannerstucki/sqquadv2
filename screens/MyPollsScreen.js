@@ -31,7 +31,7 @@ export default class MyPollsScreen extends React.Component {
       loading: true,
       polls: [],
       noPolls: true,
-      showClosed: true,
+      showClosed: false,
       squadOption: 'My Polls',
       noSquads: false,
       squads: [],
