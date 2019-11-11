@@ -37,6 +37,7 @@ export default class MyPollsScreen extends React.Component {
       squads: [],
       switchCardShow: false,
       squadFilter: '',
+      addedData: 0,
     };
   }
 
@@ -140,11 +141,11 @@ export default class MyPollsScreen extends React.Component {
     }
   }
 
-  openPoll(curpoll){
+  openPoll(curpoll) {
     var pollName;
-    for (let i = 0; i < this.state.squads.length; i++){
-      if (this.state.squads[i].key === curpoll.squad_id){
-        pollName = this.state.squads[i].name
+    for (let i = 0; i < this.state.squads.length; i++) {
+      if (this.state.squads[i].key === curpoll.squad_id) {
+        pollName = this.state.squads[i].name;
         break;
       }
     }
@@ -212,7 +213,8 @@ export default class MyPollsScreen extends React.Component {
                               item.status === 'open')) &&
                           (this.state.squadFilter === '' ||
                             this.state.squadFilter === item.squad_id) ? (
-                            <TouchableOpacity onPress={this.openPoll.bind(this,item)}>
+                            <TouchableOpacity
+                              onPress={this.openPoll.bind(this, item)}>
                               <Card style={styles.listCard}>
                                 <Text style={styles.info}>
                                   {item.question}{' '}
@@ -275,7 +277,11 @@ export default class MyPollsScreen extends React.Component {
                         <React.Fragment>
                           <TouchableOpacity
                             onPress={this.chooseSquad.bind(this, item)}>
-                            <Text style={[styles.info, { fontSize: 20, textAlign: 'center' }]}>
+                            <Text
+                              style={[
+                                styles.info,
+                                { fontSize: 20, textAlign: 'center' },
+                              ]}>
                               {item.name}
                             </Text>
                           </TouchableOpacity>

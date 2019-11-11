@@ -14,6 +14,7 @@ import {
 import BottomMenu from '../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, RadioButton } from 'react-native-paper';
+import { CheckBox } from 'react-native-elements';
 import NavigationService from '../navigation/NavigationService';
 
 export default class PollScreen extends React.Component {
@@ -31,8 +32,9 @@ export default class PollScreen extends React.Component {
       curpoll: '',
       responses: ['intitialize'],
       showDetailsCard: false,
-      checked: '',
+      checked: [],
       checked_test: 'first',
+      single: '',
     };
   }
 
@@ -63,6 +65,55 @@ export default class PollScreen extends React.Component {
     }
   }
 
+  radioClick(item) {
+    if (this.state.curpoll.poll_type === 'single') {
+      this.state.checked.splice(
+        this.state.checked.findIndex(element => element === item[0]),
+        1,
+        item[0]
+      );
+    } else {
+      if (this.state.checked.findIndex(element => element === item[0]) !== -1) {
+        this.state.checked.splice(
+          this.state.checked.findIndex(element => element === item[0]),
+          1
+        );
+      } else {
+        this.state.checked.unshift(item[0]);
+      }
+    }
+    this.setState({ showDetailsCard: false });
+  }
+
+  onSubmit() {
+    //console.log(this.state.curpoll);
+    const rootRef = firebase.database().ref();
+    const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
+    const userRef = rootRef
+      .child('users/' + firebase.auth().currentUser.uid)
+      .child('polls/' + this.state.curpoll.key);
+
+    var userUpdateData = {
+      responded: true,
+    };
+
+    var pollUpdateDate = {
+      createdAt: this.state.curpoll.createdAt,
+      creator_id: this.state.curpoll.creator_id,
+      creator_name: this.state.curpoll.creator_name,
+      poll_type: this.state.curpoll.poll_type,
+      question: this.state.curpoll.question,
+      responses: this.state.curpoll.responses,
+      squad_id: this.state.curpoll.squad_id,
+      status: this.state.curpoll.status,
+      total_votes: this.state.curpoll.total_votes + 1,
+    }
+
+    userRef.update(userUpdateData);
+    pollRef.update(pollUpdateDate);
+    this.setState({curpoll: {responded: true}});
+  }
+
   render() {
     return (
       <React.Fragment>
@@ -76,48 +127,54 @@ export default class PollScreen extends React.Component {
             this.state.showDetailsCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text style={styles.info}>{this.state.curpoll.question}</Text>
+                  <Text
+                    style={[
+                      styles.info,
+                      { marginBottom: Dimensions.get('window').height * 0.01 },
+                    ]}>
+                    {this.state.curpoll.question}
+                  </Text>
+                  <Text style={styles.pollTypeInfo}>
+                    {this.state.curpoll.poll_type} response question
+                  </Text>
                   <View style={styles.line} />
                   <FlatList
                     style={{ padding: 10 }}
+                    extraData={this.state.checked}
                     data={this.state.responses}
                     keyExtractor={(item, index) => index.toString()}
                     renderItem={({ item }) => (
                       <React.Fragment>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignContent: 'center',
-                            alignSelf: 'center',
-                            justifyContent: 'center',
-                            paddingBottom: 10,
-                          }}>
-                          <RadioButton
-                            onPress={() => {
-                              this.setState({ checked: item[0] });
-                            }}
-                            color="#5B4FFF"
-                            value={item[0]}
-                            status={
-                              this.state.checked === item[0]
-                                ? 'checked'
-                                : 'unchecked'
-                            }
-                          />
-                          <TouchableOpacity
-                            onPress={() => {
-                              this.setState({ checked: item[0] });
+                        <TouchableOpacity
+                          onPress={this.radioClick.bind(this, item)}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
                             }}>
-                            <Text style={styles.responseInfo}>{item[1].text}</Text>
-                          </TouchableOpacity>
-                        </View>
+                            <RadioButton
+                              onPress={this.radioClick.bind(this, item)}
+                              color="#5B4FFF"
+                              value={item[0]}
+                              status={
+                                this.state.checked.findIndex(
+                                  element => element === item[0]
+                                ) !== -1
+                                  ? 'checked'
+                                  : 'unchecked'
+                              }
+                            />
+                            <Text style={styles.responseInfo}>
+                              {item[1].text}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
                         <View style={styles.greyLine} />
                       </React.Fragment>
                     )}
                   />
                 </Card>
                 <View style={styles.buttonRow}>
-                  <TouchableOpacity>
+                  <TouchableOpacity onPress={this.onSubmit.bind(this)}>
                     <View style={styles.customButton}>
                       <Text style={styles.buttonText}>Submit</Text>
                     </View>
@@ -201,13 +258,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'bottom',
   },
+  pollTypeInfo: {
+    color: '#5B4FFF',
+    textAlign: 'center',
+    textAlignVertical: 'bottom',
+  },
   responseInfo: {
     fontSize: 18,
     marginVertical: Dimensions.get('window').height * 0.01,
-    paddingHorizontal: 15,
-    fontWeight: 'bold',
     color: '#5B4FFF',
-    textAlign: 'center',
     textAlignVertical: 'bottom',
   },
   detailsInfo: {
@@ -250,7 +309,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: 2,
     marginBottom: 10,
-    width: Dimensions.get('window').width * 0.4,
+    width: Dimensions.get('window').width * 0.6,
   },
   customButton: {
     backgroundColor: 'black',
