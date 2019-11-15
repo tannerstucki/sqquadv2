@@ -50,8 +50,6 @@ export default class ThreadScreen extends React.Component {
     const { params } = this.props.navigation.state;
     const thread_id = params.thread_id;
     this.setState({ curthread: thread_id });
-    //const curthread = params.curthread;
-    //this.setState({ curthread: curthread });
 
     const rootRef = firebase.database().ref();
     const messagesRef = rootRef.child('messages');

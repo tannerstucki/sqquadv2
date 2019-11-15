@@ -22,7 +22,6 @@ import NavigationService from '../navigation/NavigationService';
 export default class CreateThreadScreen extends React.Component {
   static navigationOptions = {
     title: 'New Message',
-    //headerLeft: navigate back to home screen
   };
 
   constructor(props) {

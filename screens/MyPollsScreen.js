@@ -56,26 +56,28 @@ export default class MyPollsScreen extends React.Component {
       .database()
       .ref('users/' + firebase.auth().currentUser.uid)
       .child('polls');
-    data_ref.on('child_added', snapshot => {
-      var responded = snapshot.val().responded;
-      pollsRef
-        .child(snapshot.val().poll_id)
-        .orderByChild('createdAt')
-        .on('value', snapshot => {
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          item.responded = responded;
-          var switchArray = this.state.polls;
-          var index = switchArray.findIndex(obj => obj.key === item.key);
-          if (index !== -1) {
-            switchArray.splice(index, 1);
-            switchArray.unshift(item);
-            this.setState({ polls: switchArray, noPolls: false });
-          } else {
-            switchArray.push(item);
-            this.setState({ polls: switchArray, noPolls: false });
-          }
-        });
+    data_ref.on('value', snapshot => {
+      snapshot.forEach(snapshot => {
+        var responded = snapshot.val().responded;
+        pollsRef
+          .child(snapshot.val().poll_id)
+          .orderByChild('createdAt')
+          .on('value', snapshot => {
+            var item = snapshot.val();
+            item.key = snapshot.key;
+            item.responded = responded;
+            var switchArray = this.state.polls;
+            var index = switchArray.findIndex(obj => obj.key === item.key);
+            if (index !== -1) {
+              switchArray.splice(index, 1);
+              switchArray.unshift(item);
+              this.setState({ polls: switchArray, noPolls: false });
+            } else {
+              switchArray.push(item);
+              this.setState({ polls: switchArray, noPolls: false });
+            }
+          });
+      });
     });
 
     const squadsRef = rootRef.child('squads');
@@ -153,6 +155,12 @@ export default class MyPollsScreen extends React.Component {
     NavigationService.navigate('PollScreen', {
       curpoll: curpoll,
       pollName: pollName,
+    });
+  }
+
+  createPoll() {
+    NavigationService.navigate('CreatePollScreen', {
+      squads: this.state.squads,
     });
   }
 
@@ -235,7 +243,7 @@ export default class MyPollsScreen extends React.Component {
                       )}
                     />
                     <View style={styles.buttonRow}>
-                      <TouchableOpacity>
+                      <TouchableOpacity onPress={this.createPoll.bind(this)}>
                         <View style={styles.customButton}>
                           <Text style={styles.buttonText}>New Poll</Text>
                         </View>
@@ -404,3 +412,32 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width * 0.6,
   },
 });
+
+//old get polls from componentdidmount
+/*var data_ref = firebase
+      .database()
+      .ref('users/' + firebase.auth().currentUser.uid)
+      .child('polls');
+    data_ref.on('child_added', snapshot => {
+      var responded = snapshot.val().responded;
+      console.log('responded changed');
+      pollsRef
+        .child(snapshot.val().poll_id)
+        .orderByChild('createdAt')
+        .on('value', snapshot => {
+          console.log(responded);
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          item.responded = responded;
+          var switchArray = this.state.polls;
+          var index = switchArray.findIndex(obj => obj.key === item.key);
+          if (index !== -1) {
+            switchArray.splice(index, 1);
+            switchArray.unshift(item);
+            this.setState({ polls: switchArray, noPolls: false });
+          } else {
+            switchArray.push(item);
+            this.setState({ polls: switchArray, noPolls: false });
+          }
+        });
+    });*/

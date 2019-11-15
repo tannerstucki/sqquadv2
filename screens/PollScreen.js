@@ -32,20 +32,28 @@ export default class PollScreen extends React.Component {
       curpoll: '',
       responses: ['intitialize'],
       showDetailsCard: false,
+      showResultsCard: false,
       checked: [],
       checked_test: 'first',
       single: '',
+      organizer_id: '',
     };
   }
 
   componentDidMount() {
     const { params } = this.props.navigation.state;
     const curpoll = params.curpoll;
-    const responses = params.responses;
+    const responses = Object.entries(curpoll.responses);
+
+    if (curpoll.responded) {
+      responses.sort(function(response1, response2) {
+        return response1[1].votes < response2[1].votes;
+      });
+    }
 
     this.setState({
       curpoll: curpoll,
-      responses: Object.entries(curpoll.responses),
+      responses: responses,
     });
 
     var data_ref = firebase
@@ -54,6 +62,12 @@ export default class PollScreen extends React.Component {
     data_ref.on('value', snapshot => {
       this.setState({ curuser: snapshot.val() });
     });
+
+    var squad_ref = firebase.database().ref('squads/' + curpoll.squad_id);
+    squad_ref.on('value', snapshot => {
+      this.setState({ organizer_id: snapshot.val().organizer_id });
+    });
+
     this.setState({ loading: false });
   }
 
@@ -86,32 +100,83 @@ export default class PollScreen extends React.Component {
   }
 
   onSubmit() {
-    //console.log(this.state.curpoll);
+    if (this.state.checked.length > 0) {
+      const rootRef = firebase.database().ref();
+      const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
+      const userRef = rootRef
+        .child('users/' + firebase.auth().currentUser.uid)
+        .child('polls/' + this.state.curpoll.key);
+      var userUpdateData = {
+        responded: true,
+      };
+      var updatedPoll = '';
+
+      pollRef.on('value', snapshot => {
+        updatedPoll = snapshot.val();
+      });
+
+      var responses = updatedPoll.responses;
+      for (let i = 0; i < this.state.checked.length; i++) {
+        responses[this.state.checked[i]].votes =
+          responses[this.state.checked[i]].votes + 1;
+      }
+
+      var pollUpdateDate = {
+        createdAt: updatedPoll.createdAt,
+        creator_id: updatedPoll.creator_id,
+        creator_name: updatedPoll.creator_name,
+        poll_type: updatedPoll.poll_type,
+        question: updatedPoll.question,
+        responses: responses,
+        squad_id: updatedPoll.squad_id,
+        status: updatedPoll.status,
+        total_votes: updatedPoll.total_votes + 1,
+      };
+
+      userRef.update(userUpdateData);
+      pollRef.update(pollUpdateDate);
+      NavigationService.navigate('MyPollsScreen');
+      alert('Thanks for voting!');
+    } else {
+      alert('You need to vote for an option before submitting.');
+    }
+  }
+
+  closeOpenPoll() {
     const rootRef = firebase.database().ref();
     const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
-    const userRef = rootRef
-      .child('users/' + firebase.auth().currentUser.uid)
-      .child('polls/' + this.state.curpoll.key);
+    var pollUpdateDate = '';
 
-    var userUpdateData = {
-      responded: true,
-    };
-
-    var pollUpdateDate = {
-      createdAt: this.state.curpoll.createdAt,
-      creator_id: this.state.curpoll.creator_id,
-      creator_name: this.state.curpoll.creator_name,
-      poll_type: this.state.curpoll.poll_type,
-      question: this.state.curpoll.question,
-      responses: this.state.curpoll.responses,
-      squad_id: this.state.curpoll.squad_id,
-      status: this.state.curpoll.status,
-      total_votes: this.state.curpoll.total_votes + 1,
+    if (this.state.curpoll.status === 'open') {
+      pollUpdateDate = {
+        createdAt: this.state.curpoll.createdAt,
+        creator_id: this.state.curpoll.creator_id,
+        creator_name: this.state.curpoll.creator_name,
+        poll_type: this.state.curpoll.poll_type,
+        question: this.state.curpoll.question,
+        responses: this.state.curpoll.responses,
+        squad_id: this.state.curpoll.squad_id,
+        status: 'closed',
+        total_votes: this.state.curpoll.total_votes,
+      };
+      alert('You have closed this poll');
+    } else {
+      pollUpdateDate = {
+        createdAt: this.state.curpoll.createdAt,
+        creator_id: this.state.curpoll.creator_id,
+        creator_name: this.state.curpoll.creator_name,
+        poll_type: this.state.curpoll.poll_type,
+        question: this.state.curpoll.question,
+        responses: this.state.curpoll.responses,
+        squad_id: this.state.curpoll.squad_id,
+        status: 'open',
+        total_votes: this.state.curpoll.total_votes,
+      };
+      alert('You have reopened this poll');
     }
 
-    userRef.update(userUpdateData);
     pollRef.update(pollUpdateDate);
-    this.setState({curpoll: {responded: true}});
+    NavigationService.navigate('MyPollsScreen');
   }
 
   render() {
@@ -220,10 +285,17 @@ export default class PollScreen extends React.Component {
                     </Card>
                     <View style={styles.buttonRow}>
                       {this.state.curpoll.creator_id ===
-                      firebase.auth().currentUser.uid ? (
-                        <TouchableOpacity>
+                        firebase.auth().currentUser.uid ||
+                      this.state.organizer_id ===
+                        firebase.auth().currentUser.uid ? (
+                        <TouchableOpacity
+                          onPress={this.closeOpenPoll.bind(this)}>
                           <View style={styles.customButton}>
-                            <Text style={styles.buttonText}>Close Poll</Text>
+                            {this.state.curpoll.status === 'open' ? (
+                              <Text style={styles.buttonText}>Close Poll</Text>
+                            ) : (
+                              <Text style={styles.buttonText}>Reopen Poll</Text>
+                            )}
                           </View>
                         </TouchableOpacity>
                       ) : null}
@@ -236,7 +308,73 @@ export default class PollScreen extends React.Component {
                     </View>
                   </React.Fragment>
                 ) : (
-                  <Text>Poll Closed/Responded.</Text>
+                  <React.Fragment>
+                    <Card style={styles.resultsCard}>
+                      <Text
+                        style={[
+                          styles.info,
+                          {
+                            marginBottom:
+                              Dimensions.get('window').height * 0.01,
+                          },
+                        ]}>
+                        {this.state.curpoll.question}
+                      </Text>
+                      {this.state.curpoll.creator_id ===
+                        firebase.auth().currentUser.uid ||
+                      this.state.organizer_id ===
+                        firebase.auth().currentUser.uid ? (
+                        <Text style={styles.pollTypeInfo}>Results</Text>
+                      ) : (
+                        <React.Fragment>
+                          <Text style={styles.pollTypeInfo}>
+                            You have completed this poll.
+                          </Text>
+                          <Text style={styles.pollTypeInfo}>
+                            The poll creator or squad organizer can share the
+                            results with you.
+                          </Text>
+                        </React.Fragment>
+                      )}
+                      <View style={styles.line} />
+                      <FlatList
+                        style={{ padding: 10 }}
+                        extraData={this.state}
+                        data={this.state.responses}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                          <React.Fragment>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                              }}>
+                              {this.state.curpoll.creator_id ===
+                                firebase.auth().currentUser.uid ||
+                              this.state.organizer_id ===
+                                firebase.auth().currentUser.uid ? (
+                                <Text style={styles.responseInfo}>
+                                  {item[1].text}: {item[1].votes} Votes
+                                </Text>
+                              ) : (
+                                <Text style={styles.responseInfo}>
+                                  {item[1].text}
+                                </Text>
+                              )}
+                            </View>
+                            <View style={styles.greyLine} />
+                          </React.Fragment>
+                        )}
+                      />
+                    </Card>
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity
+                        onPress={this.switchDetailsCard.bind(this)}>
+                        <View style={styles.customButton}>
+                          <Text style={styles.buttonText}>See Details</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  </React.Fragment>
                 )}
               </React.Fragment>
             )}
@@ -266,6 +404,7 @@ const styles = StyleSheet.create({
   responseInfo: {
     fontSize: 18,
     marginVertical: Dimensions.get('window').height * 0.01,
+    marginLeft: Dimensions.get('window').width * 0.025,
     color: '#5B4FFF',
     textAlignVertical: 'bottom',
   },

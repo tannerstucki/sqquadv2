@@ -27,6 +27,7 @@ import InviteScreen from './screens/InviteScreen';
 import CreateInviteScreen from './screens/CreateInviteScreen';
 import ThreadScreen from './screens/ThreadScreen';
 import CreateThreadScreen from './screens/CreateThreadScreen';
+import CreatePollScreen from './screens/CreatePollScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -41,6 +42,8 @@ const RootStackNavigator = createStackNavigator({
   InviteScreen,
   CreateInviteScreen,
   PollScreen,
+  CreatePollScreen,
+  CreateThreadScreen,
   ThreadScreen: {
     screen: ThreadScreen,
     navigationOptions({ navigation }) {
@@ -54,7 +57,6 @@ const RootStackNavigator = createStackNavigator({
       };
     },
   },
-  CreateThreadScreen,
   MenuScreen: {
     screen: MenuScreen,
     navigationOptions({ navigation }) {
