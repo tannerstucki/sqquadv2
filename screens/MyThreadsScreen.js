@@ -138,7 +138,8 @@ export default class MyThreadsScreen extends React.Component {
                   extraData={this.state}
                   renderItem={({ item }) => (
                     <React.Fragment>
-                      {item.user._id !== 'rIjWNJh2YuU0glyJbY9HgkeYwjf1' ? (
+                      {item.user._id === 'rIjWNJh2YuU0glyJbY9HgkeYwjf1' &&
+                      item.text.includes('This is the beginning') ? null : (
                         <React.Fragment>
                           <TouchableOpacity
                             onPress={this.openThread.bind(this, item)}>
@@ -175,7 +176,7 @@ export default class MyThreadsScreen extends React.Component {
                           </TouchableOpacity>
                           <View style={styles.line} />
                         </React.Fragment>
-                      ) : null}
+                      )}
                     </React.Fragment>
                   )}
                   keyExtractor={(item, index) => index.toString()}

@@ -43,6 +43,7 @@ export default class PollScreen extends React.Component {
   componentDidMount() {
     const { params } = this.props.navigation.state;
     const curpoll = params.curpoll;
+    console.log(curpoll);
     const responses = Object.entries(curpoll.responses);
 
     if (curpoll.responded) {
@@ -101,16 +102,25 @@ export default class PollScreen extends React.Component {
 
   onSubmit() {
     if (this.state.checked.length > 0) {
+      var userUpdateData = {
+        responded: true,
+      };
+
       const rootRef = firebase.database().ref();
       const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
       const userRef = rootRef
         .child('users/' + firebase.auth().currentUser.uid)
-        .child('polls/' + this.state.curpoll.key);
-      var userUpdateData = {
-        responded: true,
-      };
-      var updatedPoll = '';
+        .child('polls')
+        .orderByChild('poll_id')
+        .equalTo(this.state.curpoll.key)
+        .once('value', snapshot => {
+          rootRef
+            .child('users/' + firebase.auth().currentUser.uid)
+            .child('polls/' + Object.keys(snapshot.val())[0])
+            .update({ responded: true });
+        });
 
+      var updatedPoll = '';
       pollRef.on('value', snapshot => {
         updatedPoll = snapshot.val();
       });
@@ -122,18 +132,10 @@ export default class PollScreen extends React.Component {
       }
 
       var pollUpdateDate = {
-        createdAt: updatedPoll.createdAt,
-        creator_id: updatedPoll.creator_id,
-        creator_name: updatedPoll.creator_name,
-        poll_type: updatedPoll.poll_type,
-        question: updatedPoll.question,
         responses: responses,
-        squad_id: updatedPoll.squad_id,
-        status: updatedPoll.status,
         total_votes: updatedPoll.total_votes + 1,
       };
 
-      userRef.update(userUpdateData);
       pollRef.update(pollUpdateDate);
       NavigationService.navigate('MyPollsScreen');
       alert('Thanks for voting!');

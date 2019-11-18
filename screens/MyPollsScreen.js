@@ -412,32 +412,3 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width * 0.6,
   },
 });
-
-//old get polls from componentdidmount
-/*var data_ref = firebase
-      .database()
-      .ref('users/' + firebase.auth().currentUser.uid)
-      .child('polls');
-    data_ref.on('child_added', snapshot => {
-      var responded = snapshot.val().responded;
-      console.log('responded changed');
-      pollsRef
-        .child(snapshot.val().poll_id)
-        .orderByChild('createdAt')
-        .on('value', snapshot => {
-          console.log(responded);
-          var item = snapshot.val();
-          item.key = snapshot.key;
-          item.responded = responded;
-          var switchArray = this.state.polls;
-          var index = switchArray.findIndex(obj => obj.key === item.key);
-          if (index !== -1) {
-            switchArray.splice(index, 1);
-            switchArray.unshift(item);
-            this.setState({ polls: switchArray, noPolls: false });
-          } else {
-            switchArray.push(item);
-            this.setState({ polls: switchArray, noPolls: false });
-          }
-        });
-    });*/

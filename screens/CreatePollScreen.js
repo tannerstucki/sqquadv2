@@ -136,6 +136,7 @@ export default class CreatePollScreen extends React.Component {
       })
       .then(snapshot => {
         var poll_id = snapshot.key;
+
         firebase
           .database()
           .ref('squads/' + this.state.selectedSquad.key)
@@ -152,8 +153,36 @@ export default class CreatePollScreen extends React.Component {
                 });
             });
           });
+
+        firebase
+          .database()
+          .ref('threads')
+          .orderByChild('squad_id')
+          .equalTo(this.state.selectedSquad.key)
+          .once('value', snapshot => {
+            firebase
+              .database()
+              .ref('messages/')
+              .push({
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                text:
+                  this.state.curuser.first_name +
+                  ' ' +
+                  this.state.curuser.last_name +
+                  ' has opened a new poll: "' +
+                  this.state.question.trim() +
+                  '" Long hold this message to vote.',
+                thread: Object.keys(snapshot.val())[0],
+                user: {
+                  _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
+                  name: 'Virtual Manager',
+                },
+                extra_info: 'poll',
+                extra_id: poll_id,
+              });
+          });
       });
-      
+
     NavigationService.navigate('MyPollsScreen');
     alert('Your poll has been created!');
   }

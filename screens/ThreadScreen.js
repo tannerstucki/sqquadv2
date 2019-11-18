@@ -18,6 +18,7 @@ import {
   Header,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import NavigationService from '../navigation/NavigationService';
 import BottomMenu from '../components/BottomMenu';
 
 export default class ThreadScreen extends React.Component {
@@ -31,6 +32,7 @@ export default class ThreadScreen extends React.Component {
     messages: [],
     curuser: '',
     curthread: '',
+    threadName: '',
   };
 
   parse = snapshot => {
@@ -49,7 +51,8 @@ export default class ThreadScreen extends React.Component {
   componentDidMount() {
     const { params } = this.props.navigation.state;
     const thread_id = params.thread_id;
-    this.setState({ curthread: thread_id });
+    const threadName = params.threadName;
+    this.setState({ curthread: thread_id, threadName: threadName });
 
     const rootRef = firebase.database().ref();
     const messagesRef = rootRef.child('messages');
@@ -70,13 +73,15 @@ export default class ThreadScreen extends React.Component {
       //.equalTo(curthread.thread)
       .equalTo(thread_id)
       .on('child_added', snapshot => {
-        const { createdAt, text, user } = snapshot.val();
+        const { createdAt, text, user, extra_info, extra_id } = snapshot.val();
         const { key: _id } = snapshot;
         const message = {
           _id,
           createdAt,
           text,
           user,
+          extra_info,
+          extra_id,
         };
         this.setState(previousState => ({
           messages: GiftedChat.append(previousState.messages, message),
@@ -113,7 +118,29 @@ export default class ThreadScreen extends React.Component {
   }*/
 
   messagePress = (context, message) => {
-    alert(message.text);
+    if (message.extra_info === 'poll') {
+      var data_ref = firebase
+        .database()
+        .ref('users/' + firebase.auth().currentUser.uid)
+        .child('polls')
+        .orderByChild('poll_id')
+        .equalTo(message.extra_id);
+      data_ref.on('value', snapshot => {
+        var responded = Object.values(snapshot.val())[0].responded;
+        firebase
+          .database()
+          .ref('polls/' + message.extra_id)
+          .once('value', snapshot => {
+            var item = snapshot.val();
+            item.key = snapshot.key;
+            item.responded = responded;
+            NavigationService.navigate('PollScreen', {
+              curpoll: item,
+              pollName: this.state.threadName,
+            });
+          });
+      });
+    }
   };
 
   render() {
