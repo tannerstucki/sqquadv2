@@ -66,13 +66,13 @@ export default class MyInvitesScreen extends React.Component {
   openInvite(curinvite, curuser) {
     NavigationService.navigate('InviteScreen', {
       curinvite: curinvite,
-      });
+    });
   }
 
   openCreateInvite(curuser) {
     NavigationService.navigate('CreateInviteScreen', {
       cursquad: null,
-      });
+    });
   }
 
   render() {
@@ -99,27 +99,32 @@ export default class MyInvitesScreen extends React.Component {
                       Sorry, you have no invites.
                     </Text>
                     <Text style={styles.noInvites}>
-                      Message the squad organizer to get your invite or invite others to your squads!
+                      Message the squad organizer to get your invite or invite
+                      others to your squads!
                     </Text>
                   </React.Fragment>
-                ) : null}
-                <FlatList
-                  data={this.state.data}
-                  renderItem={({ item }) => (
-                    <React.Fragment>
-                      <TouchableOpacity
-                        onPress={this.openInvite.bind(this, item)}>
-                        <Text style={styles.info}>{item.squad_name} </Text>
-                      </TouchableOpacity>
-                      <View style={styles.line} />
-                    </React.Fragment>
-                  )}
-                />
-                <TouchableOpacity onPress={this.openCreateInvite.bind(this)}>
-                  <View style={styles.customButton}>
-                    <Text style={styles.buttonText}>Invite a Friend</Text>
-                  </View>
-                </TouchableOpacity>
+                ) : (
+                  <React.Fragment>
+                    <FlatList
+                      data={this.state.data}
+                      renderItem={({ item }) => (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.openInvite.bind(this, item)}>
+                            <Text style={styles.info}>{item.squad_name} </Text>
+                          </TouchableOpacity>
+                          <View style={styles.line} />
+                        </React.Fragment>
+                      )}
+                    />
+                    <TouchableOpacity
+                      onPress={this.openCreateInvite.bind(this)}>
+                      <View style={styles.customButton}>
+                        <Text style={styles.buttonText}>Invite a Friend</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                )}
               </View>
             )}
           </View>

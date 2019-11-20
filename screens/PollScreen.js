@@ -121,24 +121,42 @@ export default class PollScreen extends React.Component {
         });
 
       var updatedPoll = '';
-      pollRef.on('value', snapshot => {
+      pollRef.once('value', snapshot => {
         updatedPoll = snapshot.val();
+
+        var responses = updatedPoll.responses;
+        for (let i = 0; i < this.state.checked.length; i++) {
+          responses[this.state.checked[i]].votes =
+            responses[this.state.checked[i]].votes + 1;
+        }
+
+        var pollUpdateDate = {
+          responses: responses,
+          total_votes: updatedPoll.total_votes + 1,
+        };
+
+        pollRef.update(pollUpdateDate);
+
+        this.setState({
+          curpoll: {
+            createdAt: this.state.curpoll.createdAt,
+            creator_id: this.state.curpoll.creator_id,
+            creator_name: this.state.curpoll.creator_name,
+            poll_type: this.state.curpoll.poll_type,
+            question: this.state.curpoll.question,
+            responses: responses,
+            squad_id: this.state.curpoll.squad_id,
+            status: this.state.curpoll.status,
+            total_votes: this.state.curpoll.total_votes,
+            responded: true,
+          },
+          responses: Object.entries(pollUpdateDate.responses),
+        });
+
+        //NavigationService.navigate('MyPollsScreen');
       });
-
-      var responses = updatedPoll.responses;
-      for (let i = 0; i < this.state.checked.length; i++) {
-        responses[this.state.checked[i]].votes =
-          responses[this.state.checked[i]].votes + 1;
-      }
-
-      var pollUpdateDate = {
-        responses: responses,
-        total_votes: updatedPoll.total_votes + 1,
-      };
-
-      pollRef.update(pollUpdateDate);
-      NavigationService.navigate('MyPollsScreen');
       alert('Thanks for voting!');
+      this.setState({ showDetailsCard: false });
     } else {
       alert('You need to vote for an option before submitting.');
     }
@@ -178,7 +196,8 @@ export default class PollScreen extends React.Component {
     }
 
     pollRef.update(pollUpdateDate);
-    NavigationService.navigate('MyPollsScreen');
+    this.setState({ curpoll: pollUpdateDate });
+    //NavigationService.navigate('MyPollsScreen');
   }
 
   render() {

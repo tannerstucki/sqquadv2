@@ -21,7 +21,6 @@ import NavigationService from '../navigation/NavigationService';
 export default class MyPollsScreen extends React.Component {
   static navigationOptions = {
     title: 'Polls',
-    //headerLeft: navigate back to home screen
   };
 
   constructor(props) {
@@ -191,25 +190,28 @@ export default class MyPollsScreen extends React.Component {
                           Create a poll for one of your squads!
                         </Text>
                       </React.Fragment>
-                    ) : null}
-                    {Platform.OS === 'ios' || Platform.OS === 'android' ? (
-                      <TouchableOpacity
-                        onPress={this.switchSquadOption.bind(this)}>
-                        <View style={styles.optionView}>
-                          <Text style={styles.squadOption}>
-                            {this.state.squadOption}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
                     ) : (
-                      <TouchableOpacity
-                        onPress={this.switchSquadOption.bind(this)}>
-                        <View>
-                          <Text style={styles.squadOption}>
-                            {this.state.squadOption}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                      <React.Fragment>
+                        {Platform.OS === 'ios' || Platform.OS === 'android' ? (
+                          <TouchableOpacity
+                            onPress={this.switchSquadOption.bind(this)}>
+                            <View style={styles.optionView}>
+                              <Text style={styles.squadOption}>
+                                {this.state.squadOption}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={this.switchSquadOption.bind(this)}>
+                            <View>
+                              <Text style={styles.squadOption}>
+                                {this.state.squadOption}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                      </React.Fragment>
                     )}
                     <FlatList
                       data={this.state.polls}

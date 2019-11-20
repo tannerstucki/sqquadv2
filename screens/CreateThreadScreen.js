@@ -57,7 +57,7 @@ export default class CreateThreadScreen extends React.Component {
     data_ref.once('value', snapshot => {
       if (snapshot.val() === null) {
         alert(
-          "You don't belong to any squads. Create or join to start inviting friends!"
+          "You don't belong to any squads. Create or join to start using your squad board! You can still message users individually."
         );
       } else {
         snapshot.forEach(snapshot => {
