@@ -83,13 +83,14 @@ export default class MyThreadsScreen extends React.Component {
     var data_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid)
-      .child('threads');
+      .child('threads')
     data_ref.on('child_added', snapshot => {
       messagesRef
         .orderByChild('thread')
         .equalTo(snapshot.val().thread_id)
         .limitToLast(1)
         .on('child_added', snapshot => {
+          console.log(snapshot.val());
           this.pushThread(snapshot.val());
         });
     });

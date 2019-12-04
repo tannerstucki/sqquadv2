@@ -34,7 +34,6 @@ export default class PollScreen extends React.Component {
       showDetailsCard: false,
       showResultsCard: false,
       checked: [],
-      checked_test: 'first',
       single: '',
       organizer_id: '',
     };
@@ -43,7 +42,6 @@ export default class PollScreen extends React.Component {
   componentDidMount() {
     const { params } = this.props.navigation.state;
     const curpoll = params.curpoll;
-    console.log(curpoll);
     const responses = Object.entries(curpoll.responses);
 
     if (curpoll.responded) {

@@ -30,7 +30,7 @@ class BottomMenu extends React.Component {
   }
 
   tasksClick(curuser) {
-    NavigationService.navigate('TaskScreen');
+    NavigationService.navigate('MyTasksScreen');
   }
 
   pollsClick(curuser) {

@@ -9,13 +9,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   FlatList,
-  Picker,
   Platform,
 } from 'react-native';
 import BottomMenu from '../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from 'react-native-paper';
-import PickerModal from 'react-native-picker-modal-view';
 import NavigationService from '../navigation/NavigationService';
 
 export default class MyPollsScreen extends React.Component {
@@ -36,7 +34,6 @@ export default class MyPollsScreen extends React.Component {
       squads: [],
       switchCardShow: false,
       squadFilter: '',
-      addedData: 0,
     };
   }
 

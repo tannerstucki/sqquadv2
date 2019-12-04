@@ -18,7 +18,6 @@ import BottomMenu from '../components/BottomMenu';
 export default class MenuScreen extends React.Component {
   static navigationOptions = {
     title: 'Menu',
-    //headerLeft: null
   };
 
   constructor(props) {
