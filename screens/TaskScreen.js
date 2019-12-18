@@ -33,11 +33,19 @@ export default class TaskScreen extends React.Component {
       users: ['intitialize'],
       showDetailsCard: false,
       showResultsCard: false,
-      checked: [],
-      checked_test: 'first',
-      single: '',
+      checked: '',
+      statuses: ['To Do', 'In Progress', 'Need Help', 'Done'],
       cursquad: '',
       showAssigneeCard: false,
+      showStatusCard: false,
+      selected_user: [
+        '0',
+        {
+          user_id: 'initialize',
+          user_name: 'initialize',
+          status: 'initialize',
+        },
+      ],
     };
   }
 
@@ -45,10 +53,24 @@ export default class TaskScreen extends React.Component {
     const { params } = this.props.navigation.state;
     const curtask = params.curtask;
     const users = Object.entries(curtask.users);
+    var selected_user = '';
+    if (users.length === 1) {
+      selected_user = users[0];
+    } else {
+      selected_user = [
+        '0',
+        {
+          user_id: 'initialize',
+          user_name: 'initialize',
+          status: 'initialize',
+        },
+      ];
+    }
 
     this.setState({
       curtask: curtask,
       users: users,
+      selected_user: selected_user,
     });
 
     var data_ref = firebase
@@ -70,14 +92,125 @@ export default class TaskScreen extends React.Component {
 
   switchAssigneeCard() {
     if (this.state.showAssigneeCard === true) {
-      this.setState({ showAssigneeCard: false });
+      this.setState({
+        showAssigneeCard: false,
+        showStatusCard: false,
+        selected_user: [
+          '0',
+          {
+            user_id: 'initialize',
+            user_name: 'initialize',
+            status: 'initialize',
+          },
+        ],
+      });
     } else {
-      this.setState({ showAssigneeCard: true });
+      this.setState({ showAssigneeCard: true, showStatusCard: false });
     }
   }
 
-  changeStatus(){
-    /*Change the status of the task here*/
+  switchStatusCard() {
+    if (
+      this.state.curtask.users.length > 1 &&
+      (this.state.cursquad.organizer_id === firebase.auth().currentUser.uid ||
+        this.state.curtask.creator_id === firebase.auth().currentUser.uid) &&
+      this.state.selected_user[1].user_id === 'initialize'
+    ) {
+      alert('You have to choose an assignee first!');
+      this.setState({ showAssigneeCard: true, showStatusCard: false });
+    } else if (
+      this.state.curtask.users.length > 1 &&
+      (this.state.cursquad.organizer_id === firebase.auth().currentUser.uid ||
+        this.state.curtask.creator_id === firebase.auth().currentUser.uid) &&
+      this.state.selected_user[1].user_id !== 'initialize'
+    ) {
+      this.setState({ showStatusCard: true, showAssigneeCard: false });
+    } else if (
+      this.state.curtask.users.length > 1 &&
+      JSON.stringify(this.state.users).includes(firebase.auth().currentUser.uid)
+    ) {
+      var index = this.state.users.findIndex(
+        element => element[1].user_id === firebase.auth().currentUser.uid
+      );
+      this.setState({
+        showStatusCard: true,
+        showAssigneeCard: false,
+        selected_user: this.state.users[index],
+      });
+    } else if (
+      this.state.curtask.users.length === 1 &&
+      (this.state.cursquad.organizer_id === firebase.auth().currentUser.uid ||
+        this.state.curtask.creator_id === firebase.auth().currentUser.uid ||
+        this.state.users[0][1].user_id === firebase.auth().currentUser.uid)
+    ) {
+      this.setState({
+        showStatusCard: true,
+        showAssigneeCard: false,
+        selected_user: this.state.users[0],
+      });
+    } else {
+      alert('You cannot edit this task.');
+    }
+  }
+
+  radioClick(item) {
+    this.setState({ checked: item });
+  }
+
+  onSubmit() {
+    if (this.state.checked !== '') {
+      var users = this.state.users;
+      var selected_user = this.state.selected_user;
+      var index = users.findIndex(
+        element => element[1].user_id === this.state.selected_user[1].user_id
+      );
+      selected_user[1].status = this.state.checked;
+      users[index][1] = selected_user[1];
+
+      var taskUpdateData = {
+        users: Object.fromEntries(users),
+      };
+      const rootRef = firebase.database().ref();
+      const taskRef = rootRef.child('tasks/' + this.state.curtask.key);
+
+      taskRef.update(taskUpdateData);
+      alert('The task has been updated.');
+      this.setState({
+        showStatusCard: false,
+        showAssigneeCard: false,
+        checked: '',
+        selected_user: [
+          '0',
+          {
+            user_id: 'initialize',
+            user_name: 'initialize',
+            status: 'initialize',
+          },
+        ],
+      });
+    } else {
+      alert('You need to select a status before submitting.');
+    }
+  }
+
+  userRadioClick(item) {
+    this.setState({ selected_user: item });
+  }
+
+  cancelStatusCard() {
+    this.setState({
+      showStatusCard: false,
+      showAssigneeCard: false,
+      selected_user: [
+        '0',
+        {
+          user_id: 'initialize',
+          user_name: 'initialize',
+          status: 'initialize',
+        },
+      ],
+      checked: '',
+    });
   }
 
   render() {
@@ -88,7 +221,8 @@ export default class TaskScreen extends React.Component {
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 1 }}>
           <View style={styles.fill}>
-            {this.state.showAssigneeCard === false ? (
+            {this.state.showAssigneeCard === false &&
+            this.state.showStatusCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
                   <Text
@@ -160,31 +294,120 @@ export default class TaskScreen extends React.Component {
                   </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    onPress={this.changeStatus.bind(this)}>
-                    <View style={styles.customButton}>
-                      <Text style={styles.buttonText}>Change Status</Text>
-                    </View>
-                  </TouchableOpacity>
+                  {this.state.cursquad.organizer_id ===
+                    firebase.auth().currentUser.uid ||
+                  this.state.curtask.creator_id ===
+                    firebase.auth().currentUser.uid ||
+                  JSON.stringify(this.state.users).includes(
+                    firebase.auth().currentUser.uid
+                  ) ? (
+                    <TouchableOpacity
+                      onPress={this.switchStatusCard.bind(this)}>
+                      <View style={styles.customButton}>
+                        <Text style={styles.buttonText}>Change Status</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </React.Fragment>
-            ) : (
+            ) : null}
+            {this.state.showAssigneeCard === true ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text>{this.state.users[0].user_name}</Text>
+                  <Text
+                    style={[
+                      styles.info,
+                      { marginBottom: Dimensions.get('window').height * 0.01 },
+                    ]}>
+                    {this.state.curtask.title}
+                  </Text>
+                  <View style={styles.line} />
                   <FlatList
                     style={{ padding: 10 }}
                     data={this.state.users}
+                    extraData={this.state}
+                    keyExtractor={(item, index) => index.toString()}
                     renderItem={({ item }) => (
                       <React.Fragment>
-                        <Text style={styles.assigneesInfo}>{item[1].status}</Text>
-                        <View style={styles.line} />
-                        <Text style={styles.assigneesGeneric}>{item[1].user_name}</Text>
+                        {this.state.curtask.creator_id ===
+                          firebase.auth().currentUser.uid ||
+                        this.state.cursquad.organizer_id ===
+                          firebase.auth().currentUser.uid ? (
+                          <TouchableOpacity
+                            onPress={this.userRadioClick.bind(this, item)}>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                              }}>
+                              <View
+                                style={{
+                                  paddingTop:
+                                    Dimensions.get('window').height * 0.05,
+                                }}>
+                                <RadioButton
+                                  onPress={this.userRadioClick.bind(this, item)}
+                                  color="#5B4FFF"
+                                  value={item}
+                                  status={
+                                    this.state.selected_user[1].user_id ===
+                                    item[1].user_id
+                                      ? 'checked'
+                                      : 'unchecked'
+                                  }
+                                />
+                              </View>
+                              <View
+                                style={{
+                                  flexDirection: 'column',
+                                }}>
+                                <Text style={styles.assigneesInfo}>
+                                  {item[1].status}
+                                </Text>
+                                <View style={styles.radioLine} />
+                                <Text style={styles.assigneesGeneric}>
+                                  {item[1].user_name}
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        ) : (
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                            }}>
+                            <View
+                              style={{
+                                flexDirection: 'column',
+                              }}>
+                              <Text style={styles.assigneesInfo}>
+                                {item[1].status}
+                              </Text>
+                              <View style={styles.radioLine} />
+                              <Text style={styles.assigneesGeneric}>
+                                {item[1].user_name}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
                       </React.Fragment>
                     )}
                   />
                 </Card>
                 <View style={styles.buttonRow}>
+                  {this.state.cursquad.organizer_id ===
+                    firebase.auth().currentUser.uid ||
+                  this.state.curtask.creator_id ===
+                    firebase.auth().currentUser.uid ||
+                  JSON.stringify(this.state.users).includes(
+                    firebase.auth().currentUser.uid
+                  ) ? (
+                    <TouchableOpacity
+                      onPress={this.switchStatusCard.bind(this)}>
+                      <View style={styles.customButton}>
+                        <Text style={styles.buttonText}>Change Status</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
                   <TouchableOpacity
                     onPress={this.switchAssigneeCard.bind(this)}>
                     <View style={styles.customButton}>
@@ -193,7 +416,66 @@ export default class TaskScreen extends React.Component {
                   </TouchableOpacity>
                 </View>
               </React.Fragment>
-            )}
+            ) : null}
+            {this.state.showStatusCard === true ? (
+              <React.Fragment>
+                <Card style={styles.resultsCard}>
+                  <Text
+                    style={[
+                      styles.info,
+                      { marginBottom: Dimensions.get('window').height * 0.01 },
+                    ]}>
+                    {this.state.curtask.title}
+                  </Text>
+                  <Text style={styles.taskTypeInfo}>
+                    {this.state.selected_user[1].user_name}
+                  </Text>
+                  <View style={styles.line} />
+                  <FlatList
+                    style={{ padding: 10 }}
+                    extraData={this.state.checked}
+                    data={this.state.statuses}
+                    keyExtractor={(item, index) => index.toString()}
+                    renderItem={({ item }) => (
+                      <React.Fragment>
+                        <TouchableOpacity
+                          onPress={this.radioClick.bind(this, item)}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                            }}>
+                            <RadioButton
+                              onPress={this.radioClick.bind(this, item)}
+                              color="#5B4FFF"
+                              value={item}
+                              status={
+                                this.state.checked === item
+                                  ? 'checked'
+                                  : 'unchecked'
+                              }
+                            />
+                            <Text style={styles.responseInfo}>{item}</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <View style={styles.line} />
+                      </React.Fragment>
+                    )}
+                  />
+                </Card>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity onPress={this.onSubmit.bind(this)}>
+                    <View style={styles.customButton}>
+                      <Text style={styles.buttonText}>Submit</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={this.cancelStatusCard.bind(this)}>
+                    <View style={styles.customButton}>
+                      <Text style={styles.buttonText}>Cancel</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </React.Fragment>
+            ) : null}
           </View>
         </LinearGradient>
         <BottomMenu curuser={this.state.curuser} />
@@ -271,13 +553,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     width: Dimensions.get('window').width * 0.6,
   },
-  greyLine: {
-    backgroundColor: '#B8B8B8',
+  radioLine: {
+    backgroundColor: '#5B4FFF',
     height: 1,
     alignSelf: 'center',
     marginTop: 2,
     marginBottom: 10,
-    width: Dimensions.get('window').width * 0.6,
+    width: Dimensions.get('window').width * 0.5,
   },
   customButton: {
     backgroundColor: 'black',

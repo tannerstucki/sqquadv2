@@ -38,7 +38,7 @@ class BottomMenu extends React.Component {
   }
 
   timersClick(curuser) {
-    NavigationService.navigate('ScheduleScreen');
+    NavigationService.navigate('MyEventsScreen');
   }
 
   render() {

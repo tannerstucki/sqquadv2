@@ -34,12 +34,10 @@ export default class MyTasksScreen extends React.Component {
       noTasks: true,
       curStatus: 'All Tasks',
       squadOption: 'My Tasks',
-      squad_id: '',
       noSquads: false,
       squads: [],
       switchSquadCardShow: false,
       switchStatusCardShow: false,
-      squadFilter: '',
     };
   }
 
@@ -116,7 +114,6 @@ export default class MyTasksScreen extends React.Component {
   }
 
   openTask(curtask) {
-    console.log('you in');
     var taskName;
     if (curtask.squad_id !== 'null') {
       for (let i = 0; i < this.state.squads.length; i++) {
@@ -136,9 +133,9 @@ export default class MyTasksScreen extends React.Component {
   }
 
   createTask() {
-    /*NavigationService.navigate('CreatePollScreen', {
+    NavigationService.navigate('CreateTaskScreen', {
       squads: this.state.squads,
-    });*/
+    })
   }
 
   chooseStatus(item) {
@@ -288,6 +285,7 @@ export default class MyTasksScreen extends React.Component {
                         <FlatList
                           data={this.state.tasks}
                           extraData={this.state}
+                          keyExtractor={(item, index) => index.toString()}
                           renderItem={({ item }) => (
                             <React.Fragment>
                               {this.state.curStatus === 'All Tasks' ? (
@@ -391,6 +389,7 @@ export default class MyTasksScreen extends React.Component {
                         <FlatList
                           style={{ padding: 10 }}
                           data={this.state.statuses}
+                          keyExtractor={(item, index) => index.toString()}
                           renderItem={({ item }) => (
                             <React.Fragment>
                               <TouchableOpacity
@@ -426,6 +425,7 @@ export default class MyTasksScreen extends React.Component {
                     <FlatList
                       style={{ padding: 10 }}
                       data={this.state.squads}
+                      keyExtractor={(item, index) => index.toString()}
                       renderItem={({ item }) => (
                         <React.Fragment>
                           <TouchableOpacity

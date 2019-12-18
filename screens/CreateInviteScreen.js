@@ -198,7 +198,7 @@ export default class CreateInviteScreen extends React.Component {
       })
       .then(function() {
         alert(
-          "You're invite has been sent!"
+          "Your invite has been sent!"
         );
       })
       .catch(function(error) {

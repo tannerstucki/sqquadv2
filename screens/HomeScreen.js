@@ -7,6 +7,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import App from '../App';
@@ -53,13 +54,21 @@ export default class HomeScreen extends React.Component {
               </React.Fragment>
             ) : (
               <React.Fragment>
-          <Image
-            style={styles.logo}
-            source={require('../assets/BigWhite.png')}
-          />
+                <Image
+                  style={styles.logo}
+                  source={require('../assets/BigWhite.png')}
+                />
                 <Text style={styles.info} key="user_name">
                   Let's Get It, {this.state.curuser.first_name}
                 </Text>
+                <TouchableOpacity>
+                  <View style={styles.circle}>
+                    <Image
+                      style={styles.icon}
+                      source={require('assets/icons/plus.png')}
+                    />
+                  </View>
+                </TouchableOpacity>
               </React.Fragment>
             )}
           </View>
@@ -71,6 +80,25 @@ export default class HomeScreen extends React.Component {
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    height: 30,
+    width: 30,
+    margin: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  circle: {
+    width: 60,
+    height: 60,
+    borderRadius: 100 / 2,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    marginTop: Dimensions.get('window').height * 0.15,
+    marginLeft: Dimensions.get('window').width * 0.3,
+    alignSelf: 'right',
+    position: 'absolute',
+  },
   fill: {
     height: Dimensions.get('window').height * 0.8,
     width: Dimensions.get('window').width,

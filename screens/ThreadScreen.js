@@ -140,6 +140,18 @@ export default class ThreadScreen extends React.Component {
             });
           });
       });
+    } else if (message.extra_info === 'task') {
+      firebase
+        .database()
+        .ref('tasks/' + message.extra_id)
+        .once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          NavigationService.navigate('TaskScreen', {
+            curtask: item,
+            taskName: this.state.threadName,
+          });
+        });
     }
   };
 

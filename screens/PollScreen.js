@@ -128,12 +128,12 @@ export default class PollScreen extends React.Component {
             responses[this.state.checked[i]].votes + 1;
         }
 
-        var pollUpdateDate = {
+        var pollUpdateData = {
           responses: responses,
           total_votes: updatedPoll.total_votes + 1,
         };
 
-        pollRef.update(pollUpdateDate);
+        pollRef.update(pollUpdateData);
 
         this.setState({
           curpoll: {
@@ -148,7 +148,7 @@ export default class PollScreen extends React.Component {
             total_votes: this.state.curpoll.total_votes,
             responded: true,
           },
-          responses: Object.entries(pollUpdateDate.responses),
+          responses: Object.entries(pollUpdateData.responses),
         });
 
         //NavigationService.navigate('MyPollsScreen');
@@ -163,10 +163,10 @@ export default class PollScreen extends React.Component {
   closeOpenPoll() {
     const rootRef = firebase.database().ref();
     const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
-    var pollUpdateDate = '';
+    var pollUpdateData = '';
 
     if (this.state.curpoll.status === 'open') {
-      pollUpdateDate = {
+      pollUpdateData = {
         createdAt: this.state.curpoll.createdAt,
         creator_id: this.state.curpoll.creator_id,
         creator_name: this.state.curpoll.creator_name,
@@ -179,7 +179,7 @@ export default class PollScreen extends React.Component {
       };
       alert('You have closed this poll');
     } else {
-      pollUpdateDate = {
+      pollUpdateData = {
         createdAt: this.state.curpoll.createdAt,
         creator_id: this.state.curpoll.creator_id,
         creator_name: this.state.curpoll.creator_name,
@@ -193,8 +193,8 @@ export default class PollScreen extends React.Component {
       alert('You have reopened this poll');
     }
 
-    pollRef.update(pollUpdateDate);
-    this.setState({ curpoll: pollUpdateDate });
+    pollRef.update(pollUpdateData);
+    this.setState({ curpoll: pollUpdateData });
     //NavigationService.navigate('MyPollsScreen');
   }
 

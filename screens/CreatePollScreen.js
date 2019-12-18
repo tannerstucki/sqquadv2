@@ -255,19 +255,6 @@ export default class CreatePollScreen extends React.Component {
                       renderItem={({ item }) => (
                         <React.Fragment>
                           <View style={{ flexDirection: 'row' }}>
-                            {/*<TouchableOpacity>
-                                <Text
-                                  style={[
-                                    styles.info,
-                                    {
-                                      fontWeight: 'bold',
-                                      paddingLeft:
-                                        Dimensions.get('window').width * 0.125,
-                                    },
-                                  ]}>
-                                  X |
-                                </Text>
-                              </TouchableOpacity>*/}
                             <Text style={[styles.info]}>{item.text}</Text>
                           </View>
                           <View style={styles.line} />

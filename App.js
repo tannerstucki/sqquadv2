@@ -17,7 +17,7 @@ import MyPollsScreen from './screens/MyPollsScreen';
 import PollScreen from './screens/PollScreen';
 import MyThreadsScreen from './screens/MyThreadsScreen';
 import MyTasksScreen from './screens/MyTasksScreen';
-import ScheduleScreen from './screens/ScheduleScreen';
+import MyEventsScreen from './screens/MyEventsScreen';
 import UserScreen from './screens/UserScreen';
 import MySquadsScreen from './screens/MySquadsScreen';
 import SquadScreen from './screens/SquadScreen';
@@ -29,6 +29,7 @@ import ThreadScreen from './screens/ThreadScreen';
 import CreateThreadScreen from './screens/CreateThreadScreen';
 import CreatePollScreen from './screens/CreatePollScreen';
 import TaskScreen from './screens/TaskScreen';
+import CreateTaskScreen from './screens/CreateTaskScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -46,6 +47,7 @@ const RootStackNavigator = createStackNavigator({
   CreatePollScreen,
   CreateThreadScreen,
   TaskScreen,
+  CreateTaskScreen,
   ThreadScreen: {
     screen: ThreadScreen,
     navigationOptions({ navigation }) {
@@ -111,8 +113,8 @@ const RootStackNavigator = createStackNavigator({
       };
     },
   },
-  ScheduleScreen: {
-    screen: ScheduleScreen,
+  MyEventsScreen: {
+    screen: MyEventsScreen,
     navigationOptions({ navigation }) {
       return {
         headerLeft: (
