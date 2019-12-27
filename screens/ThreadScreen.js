@@ -152,6 +152,18 @@ export default class ThreadScreen extends React.Component {
             taskName: this.state.threadName,
           });
         });
+    } else if (message.extra_info === 'event') {
+      firebase
+        .database()
+        .ref('events/' + message.extra_id)
+        .once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          NavigationService.navigate('EventScreen', {
+            curevent: item,
+            eventName: this.state.threadName,
+          });
+        });
     }
   };
 

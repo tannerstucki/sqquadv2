@@ -290,7 +290,14 @@ export default class TaskScreen extends React.Component {
                         <View style={styles.line} />
                         <Text style={styles.generic}>Squad</Text>
                       </React.Fragment>
-                    ) : null}
+                    ) : 
+                      <React.Fragment>
+                        <Text style={styles.detailsInfo}>
+                          Personal Task
+                        </Text>
+                        <View style={styles.line} />
+                        <Text style={styles.generic}>Only you can see this task</Text>
+                      </React.Fragment>}
                   </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>

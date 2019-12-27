@@ -231,7 +231,7 @@ export default class CreateTaskScreen extends React.Component {
                     this.state.curuser.last_name +
                     ' has created a new task for all squad members: "' +
                     this.state.title.trim() +
-                    '" Long hold this message to see this task.',
+                    '". Long hold this message to see this task.',
                   thread: Object.keys(snapshot.val())[0],
                   user: {
                     _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
@@ -405,7 +405,14 @@ export default class CreateTaskScreen extends React.Component {
                   </React.Fragment>
                 ) : null}
                 {this.state.switchCardShow === true ? (
-                  <Card style={[styles.resultsCard, {}]}>
+                  <Card
+                    style={[
+                      styles.resultsCard,
+                      {
+                        marginLeft: Dimensions.get('window').width * 0,
+                        marginTop: Dimensions.get('window').height * 0.125,
+                      },
+                    ]}>
                     <TouchableOpacity
                       onPress={this.chooseSquad.bind(this, 'Personal Task')}>
                       <Text
@@ -444,7 +451,7 @@ export default class CreateTaskScreen extends React.Component {
                       style={[
                         styles.resultsCard,
                         {
-                          marginLeft: Dimensions.get('window').width * 0.05,
+                          marginLeft: Dimensions.get('window').width * 0,
                           marginTop: Dimensions.get('window').height * 0.125,
                         },
                       ]}>

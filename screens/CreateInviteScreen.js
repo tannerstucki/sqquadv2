@@ -165,47 +165,236 @@ export default class CreateInviteScreen extends React.Component {
     });
   }
 
-  createInvite() {
-    var body = '';
-    if (!this.state.acceptor_email) {
-      body = {
-        sender_id: this.state.curuser.key,
-        acceptor_id: this.state.chosen_user.key,
-        squad_id: this.state.chosen_squad.key,
-        squad_name: this.state.chosen_squad.name,
-        invite_type: 'internal',
-        acceptor_email: this.state.chosen_user.email,
-        status: 'new',
-      };
+  searchInvites() {
+    var acceptor_email = '';
+    if (this.state.acceptor_email) {
+      acceptor_email = this.state.acceptor_email.toLowerCase().trim();
     } else {
-      body = {
-        sender_id: this.state.curuser.key,
-        acceptor_id: null,
-        squad_id: this.state.chosen_squad.key,
-        squad_name: this.state.chosen_squad.name,
-        invite_type: 'external',
-        acceptor_email: this.state.acceptor_email,
-        status: 'new',
-      };
+      acceptor_email = this.state.chosen_user.email.toLowerCase().trim();
     }
 
-    var invite_post = firebase
+    firebase
       .database()
-      .ref('invites/')
-      .push(body)
-      .then(function() {
-        NavigationService.navigate('MenuScreen');
-      })
-      .then(function() {
-        alert(
-          "Your invite has been sent!"
-        );
-      })
-      .catch(function(error) {
-        var errorCode = error.code;
-        var errorMessage = error.message;
-        alert(errorCode + ': ' + errorMessage);
+      .ref()
+      .child('invites')
+      .orderByChild('acceptor_email')
+      .equalTo(acceptor_email)
+      .once('value', snapshot => {
+        var pending = false;
+        var accepted = false;
+        var declined = false;
+        snapshot.forEach(snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          if (item.squad_id === this.state.chosen_squad.key) {
+            if (item.status === 'new') {
+              pending = true;
+            } else if (item.status === 'accepted') {
+              accepted = true;
+            } else {
+              declined = true;
+            }
+          }
+        });
+        if (accepted) {
+          alert(
+            'This person already belongs to this squad. No need to send them an invite!'
+          );
+        } else if (pending) {
+          alert(
+            'This person already has a pending invitation to this squad. Give them a little longer to decide.'
+          );
+        } else {
+          if (declined) {
+            alert(
+              "This person has already declined an invite to this squad. After multiple invites, you won't be able to send more."
+            );
+          }
+          var body = '';
+          if (!this.state.acceptor_email) {
+            body = {
+              sender_id: this.state.curuser.key,
+              acceptor_id: this.state.chosen_user.key,
+              squad_id: this.state.chosen_squad.key,
+              squad_name: this.state.chosen_squad.name,
+              invite_type: 'internal',
+              acceptor_email: this.state.chosen_user.email.trim().toLowerCase(),
+              status: 'new',
+            };
+          } else {
+            body = {
+              sender_id: this.state.curuser.key,
+              acceptor_id: null,
+              squad_id: this.state.chosen_squad.key,
+              squad_name: this.state.chosen_squad.name,
+              invite_type: 'external',
+              acceptor_email: this.state.acceptor_email.trim().toLowerCase(),
+              status: 'new',
+            };
+          }
+
+          var invite_post = firebase
+            .database()
+            .ref('invites/')
+            .push(body)
+            .then(function() {
+              NavigationService.navigate('MenuScreen');
+            })
+            .then(function() {
+              alert('Your invite has been sent!');
+            })
+            .catch(function(error) {
+              var errorCode = error.code;
+              var errorMessage = error.message;
+              alert(errorCode + ': ' + errorMessage);
+            });
+        }
       });
+  }
+
+  createInvite() {
+    var already_member = false;
+    if (
+      this.state.acceptor_email.trim().toLowerCase() ===
+      this.state.curuser.email
+    ) {
+      alert("Sorry, you can't invite yourself to a squad.");
+    } else {
+      //This is to check if that user already belongs to the squad
+      if (!this.state.acceptor_email) {
+        for (
+          let i = 0;
+          i < Object.values(this.state.chosen_squad.users).length;
+          i++
+        ) {
+          if (
+            Object.values(this.state.chosen_squad.users)[i].user_id ===
+            this.state.chosen_user.key
+          ) {
+            already_member = true;
+            break;
+          }
+        }
+        if (already_member) {
+          alert(
+            'This person already belongs to this squad. No need to send them an invite!'
+          );
+        } else {
+          this.searchInvites();
+        }
+      } else {
+        const rootRef = firebase.database().ref();
+        var usersRef = rootRef
+          .child('users')
+          .orderByChild('email')
+          .equalTo(this.state.acceptor_email.trim().toLowerCase())
+          .once('value', snapshot => {
+            if (
+              snapshot.val() !== null &&
+              Object.values(snapshot.val())[0].squads !== undefined
+            ) {
+              for (
+                let i = 0;
+                i <
+                Object.values(Object.values(snapshot.val())[0].squads).length;
+                i++
+              ) {
+                if (
+                  Object.values(Object.values(snapshot.val())[0].squads)[0]
+                    .squad_id === this.state.chosen_squad.key
+                ) {
+                  already_member = true;
+                  break;
+                }
+              }
+            }
+            if (already_member) {
+              alert(
+                'This person already belongs to this squad. No need to send them an invite!'
+              );
+            } else {
+              this.searchInvites();
+            }
+          });
+      }
+    }
+
+    /*if (send_invite) {
+        var body = {
+          sender_id: this.state.curuser.key,
+          acceptor_id: this.state.chosen_user.key,
+          squad_id: this.state.chosen_squad.key,
+          squad_name: this.state.chosen_squad.name,
+          invite_type: 'internal',
+          acceptor_email: this.state.chosen_user.email,
+          status: 'new',
+        };
+
+        /*var invite_post = firebase
+          .database()
+          .ref('invites/')
+          .push(body)
+          .then(function() {
+            NavigationService.navigate('MenuScreen');
+          })
+          .then(function() {
+            alert('Your invite has been sent!');
+          })
+          .catch(function(error) {
+            var errorCode = error.code;
+            var errorMessage = error.message;
+            alert(errorCode + ': ' + errorMessage);
+          });
+      } else {
+        alert('Sorry, that person is already part of that squad.');
+      }
+    } else {
+      const rootRef = firebase.database().ref();
+      var usersRef = rootRef
+        .child('users')
+        .orderByChild('email')
+        .equalTo(this.state.acceptor_email)
+        .on('value', snapshot => {
+          for (let i = 0; i < snapshot.val().squads.length; i++) {
+            if (
+              snapshot.val().squads[i].squad_id === this.state.chosen_squad.key
+            ) {
+              send_invite = false;
+              break;
+            }
+          }
+
+          if (send_invite) {
+            body = {
+              sender_id: this.state.curuser.key,
+              acceptor_id: null,
+              squad_id: this.state.chosen_squad.key,
+              squad_name: this.state.chosen_squad.name,
+              invite_type: 'external',
+              acceptor_email: this.state.acceptor_email,
+              status: 'new',
+            };
+
+            /*var invite_post = firebase
+              .database()
+              .ref('invites/')
+              .push(body)
+              .then(function() {
+                NavigationService.navigate('MenuScreen');
+              })
+              .then(function() {
+                alert('Your invite has been sent!');
+              })
+              .catch(function(error) {
+                var errorCode = error.code;
+                var errorMessage = error.message;
+                alert(errorCode + ': ' + errorMessage);
+              });
+          } else {
+            alert('Sorry, that person is already part of that squad.');
+          }
+        });
+    }*/
   }
 
   noAccountOption() {
@@ -300,15 +489,19 @@ export default class CreateInviteScreen extends React.Component {
                 data={this.state.found_users}
                 renderItem={({ item }) => (
                   <React.Fragment>
-                    <TouchableOpacity
-                      onPress={this.chooseUser.bind(this, item)}>
-                      <Text style={styles.info}>
-                        {item.first_name} {item.last_name}
-                      </Text>
-                      <Text style={styles.generic}>{item.email}</Text>
-                      <Text style={styles.generic}>{item.zip}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.line} />
+                    {item.key !== firebase.auth().currentUser.uid ? (
+                      <React.Fragment>
+                        <TouchableOpacity
+                          onPress={this.chooseUser.bind(this, item)}>
+                          <Text style={styles.info}>
+                            {item.first_name} {item.last_name}
+                          </Text>
+                          <Text style={styles.generic}>{item.email}</Text>
+                          <Text style={styles.generic}>{item.zip}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.line} />
+                      </React.Fragment>
+                    ) : null}
                   </React.Fragment>
                 )}
               />

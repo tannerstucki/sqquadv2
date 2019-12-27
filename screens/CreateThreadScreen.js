@@ -423,17 +423,27 @@ export default class CreateThreadScreen extends React.Component {
                             data={this.state.found_users}
                             renderItem={({ item }) => (
                               <React.Fragment>
-                                <TouchableOpacity
-                                  onPress={this.chooseUser.bind(this, item)}>
-                                  <Text style={styles.info}>
-                                    {item.first_name} {item.last_name}
-                                  </Text>
-                                  <Text style={styles.generic}>
-                                    {item.email}
-                                  </Text>
-                                  <Text style={styles.generic}>{item.zip}</Text>
-                                </TouchableOpacity>
-                                <View style={styles.line} />
+                                {item.key !==
+                                firebase.auth().currentUser.uid ? (
+                                  <React.Fragment>
+                                    <TouchableOpacity
+                                      onPress={this.chooseUser.bind(
+                                        this,
+                                        item
+                                      )}>
+                                      <Text style={styles.info}>
+                                        {item.first_name} {item.last_name}
+                                      </Text>
+                                      <Text style={styles.generic}>
+                                        {item.email}
+                                      </Text>
+                                      <Text style={styles.generic}>
+                                        {item.zip}
+                                      </Text>
+                                    </TouchableOpacity>
+                                    <View style={styles.line} />
+                                  </React.Fragment>
+                                ) : null}
                               </React.Fragment>
                             )}
                           />

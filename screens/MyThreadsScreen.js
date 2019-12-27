@@ -16,7 +16,7 @@ import NavigationService from '../navigation/NavigationService';
 
 export default class MyThreadsScreen extends React.Component {
   static navigationOptions = {
-    title: 'My Messages',
+    title: 'Messages',
   };
 
   constructor(props) {

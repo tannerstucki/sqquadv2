@@ -30,6 +30,8 @@ import CreateThreadScreen from './screens/CreateThreadScreen';
 import CreatePollScreen from './screens/CreatePollScreen';
 import TaskScreen from './screens/TaskScreen';
 import CreateTaskScreen from './screens/CreateTaskScreen';
+import EventScreen from './screens/EventScreen';
+import CreateEventScreen from './screens/CreateEventScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -48,6 +50,8 @@ const RootStackNavigator = createStackNavigator({
   CreateThreadScreen,
   TaskScreen,
   CreateTaskScreen,
+  EventScreen,
+  CreateEventScreen,
   ThreadScreen: {
     screen: ThreadScreen,
     navigationOptions({ navigation }) {

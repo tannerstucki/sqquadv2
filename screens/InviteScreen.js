@@ -34,7 +34,7 @@ export default class InviteScreen extends React.Component {
   componentWillMount() {
     const { params } = this.props.navigation.state;
     const curinvite = params.curinvite;
-    
+
     var data_ref = firebase
       .database()
       .ref()
@@ -89,30 +89,52 @@ export default class InviteScreen extends React.Component {
       sender_id: curinvite.sender_id,
     };
 
-    var curThread = '';
-    firebase
-      .database()
-      .ref('threads')
-      .orderByChild('squad_id')
-      .equalTo(curinvite.squad_id)
-      .on('value', snapshot => {
-        curThread = snapshot.val();
-        threadRef.push({ thread_id: Object.keys(curThread)[0] });
-      });
-
     inviteRef.update(updateData);
-    squadRef.push({ squad_id: curinvite.squad_id });
 
-    firebase
-      .database()
-      .ref('squads/' + curinvite.squad_id)
-      .child('users')
-      .push({
+    var already_member = false;
+    if (this.state.curuser.squads !== undefined) {
+      for (
+        let i = 0;
+        i < Object.values(this.state.curuser.squads).length;
+        i++
+      ) {
+        if (
+          Object.values(this.state.curuser.squads)[i].squad_id ===
+          curinvite.squad_id
+        ) {
+          already_member = true;
+          break;
+        }
+      }
+    }
+    if (already_member) {
+      alert('You already belong to this squad. No need to join again!');
+    } else {
+      var curThread = '';
+      firebase
+        .database()
+        .ref('threads')
+        .orderByChild('squad_id')
+        .equalTo(curinvite.squad_id)
+        .on('value', snapshot => {
+          curThread = snapshot.val();
+          threadRef.push({ thread_id: Object.keys(curThread)[0] });
+        });
+      squadRef.push({ squad_id: curinvite.squad_id });
+
+      firebase
+        .database()
+        .ref('squads/' + curinvite.squad_id)
+        .child('users')
+        .push({
           user_id: firebase.auth().currentUser.uid,
-          name: this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
-      });
+          name:
+            this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
+        });
 
-    alert('You joined a new squad!');
+      alert('You joined a new squad!');
+    }
+
     NavigationService.navigate('MenuScreen');
   }
 
@@ -173,14 +195,12 @@ export default class InviteScreen extends React.Component {
           </ScrollView>
           {curinvite.status == 'new' ? (
             <View style={styles.buttonRow}>
-              <TouchableOpacity
-                onPress={this.accept.bind(this, curinvite)}>
+              <TouchableOpacity onPress={this.accept.bind(this, curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Accept</Text>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={this.decline.bind(this, curinvite)}>
+              <TouchableOpacity onPress={this.decline.bind(this, curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Decline</Text>
                 </View>
