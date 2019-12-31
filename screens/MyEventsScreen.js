@@ -190,9 +190,30 @@ export default class MyEventsScreen extends React.Component {
           item.key = snapshot.key;
           var switchArray = this.state.events;
           var index = switchArray.findIndex(obj => obj.key === item.key);
-          if (index == -1) {
+          if (index === -1) {
             switchArray.push(item);
-            this.setState({ events: switchArray, noEvents: false });
+
+            var objectTitle = Moment(
+              new Date(parseInt(item.startAt)).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles',
+              })
+            ).format('YYYY-MM-DD');
+
+            var calendarDots = this.state.calendarDots;
+            calendarDots[objectTitle] = { marked: true, dotColor: '#5B4FFF' };
+
+            var calendarStripDots = this.state.calendarStripDots;
+            calendarStripDots.push({
+              date: objectTitle,
+              dots: [{ color: '#5B4FFF', selectedDotColor: 'white' }],
+            });
+
+            this.setState({
+              calendarDots: calendarDots,
+              calendarStripDots: calendarStripDots,
+              events: switchArray,
+              noEvents: false,
+            });
           }
         });
       });
@@ -217,7 +238,31 @@ export default class MyEventsScreen extends React.Component {
               var index = switchArray.findIndex(obj => obj.key === item.key);
               if (index === -1) {
                 switchArray.push(item);
-                this.setState({ events: switchArray, noEvents: false });
+
+                var objectTitle = Moment(
+                  new Date(parseInt(item.startAt)).toLocaleString('en-US', {
+                    timeZone: 'America/Los_Angeles',
+                  })
+                ).format('YYYY-MM-DD');
+
+                var calendarDots = this.state.calendarDots;
+                calendarDots[objectTitle] = {
+                  marked: true,
+                  dotColor: '#5B4FFF',
+                };
+
+                var calendarStripDots = this.state.calendarStripDots;
+                calendarStripDots.push({
+                  date: objectTitle,
+                  dots: [{ color: '#5B4FFF', selectedDotColor: 'white' }],
+                });
+
+                this.setState({
+                  calendarDots: calendarDots,
+                  calendarStripDots: calendarStripDots,
+                  events: switchArray,
+                  noEvents: false,
+                });
               }
             });
         });
@@ -230,7 +275,10 @@ export default class MyEventsScreen extends React.Component {
       item !== this.state.squadOption &&
       item.name !== this.state.squadOption
     ) {
-      this.setState({ events: [] }, this.updateEvents.bind(this, item));
+      this.setState(
+        { events: [], calendarDots: {}, calendarStripDots: [], noEvents: true },
+        this.updateEvents.bind(this, item)
+      );
     }
 
     this.setState({
@@ -404,6 +452,31 @@ export default class MyEventsScreen extends React.Component {
                             }}
                           />
                         </TouchableOpacity>
+                        {this.state.noEvents === true ? (
+                          <React.Fragment>
+                            {this.state.noSquads === true ? (
+                              <React.Fragment>
+                                <Text style={styles.noEvents}>
+                                  Sorry, you have no events.
+                                </Text>
+                                <Text style={styles.noEvents}>
+                                  Create an event for yourself or get started by
+                                  creating or joining a squad!
+                                </Text>
+                              </React.Fragment>
+                            ) : (
+                              <React.Fragment>
+                                <Text style={styles.noEvents}>
+                                  Events from your new squads will show up here.
+                                </Text>
+                                <Text style={styles.noEvents}>
+                                  To see previously created events for your
+                                  squads, select a squad from the filter above!
+                                </Text>
+                              </React.Fragment>
+                            )}
+                          </React.Fragment>
+                        ) : null}
                         <FlatList
                           style={{ padding: 10 }}
                           extraData={this.state}
@@ -622,6 +695,15 @@ const styles = StyleSheet.create({
     marginRight: 0,
     color: 'grey',
     textAlignVertical: 'center',
+  },
+  noEvents: {
+    fontSize: 20,
+    padding: 10,
+    alignSelf: 'center',
+    fontWeight: 'bold',
+    color: 'white',
+    marginTop: 20,
+    textAlign: 'center',
   },
   endAt: {
     fontSize: 12,

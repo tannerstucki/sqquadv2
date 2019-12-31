@@ -39,6 +39,7 @@ export default class EventScreen extends React.Component {
       cursquad: '',
       curdate: '',
       showRsvpCard: false,
+      showCheckInCard: false,
       showStatusCard: false,
       selected_user: [
         '0',
@@ -111,6 +112,24 @@ export default class EventScreen extends React.Component {
     }
   }
 
+  switchCheckInCard() {
+    if (this.state.showCheckInCard === true) {
+      this.setState({
+        showCheckInCard: false,
+        selected_user: [
+          '0',
+          {
+            user_id: 'initialize',
+            user_name: 'initialize',
+            status: 'initialize',
+          },
+        ],
+      });
+    } else {
+      this.setState({ showCheckInCard: true });
+    }
+  }
+
   onSubmit(rsvp) {
     var users = this.state.users;
     var index = users.findIndex(
@@ -149,31 +168,40 @@ export default class EventScreen extends React.Component {
 
   onCheckIn() {
     var users = this.state.users;
-    var index = users.findIndex(
-      element => element[1].user_id === firebase.auth().currentUser.uid
-    );
-    var selected_user = this.state.users[index];
-    if (selected_user[1].checkedIn !== 'Yes') {
-      users[index][1].checkedIn = 'Yes';
-      var eventUpdateData = {
-        users: Object.fromEntries(users),
-      };
-      const rootRef = firebase.database().ref();
-      const eventRef = rootRef.child('events/' + this.state.curevent.key);
-      console.log(eventUpdateData);
-      this.setState({ users: users });
+    if (JSON.stringify(users).includes(firebase.auth().currentUser.uid)) {
+      var index = users.findIndex(
+        element => element[1].user_id === firebase.auth().currentUser.uid
+      );
+      var selected_user = this.state.users[index];
+      if (selected_user[1].checkedIn !== 'Yes') {
+        users[index][1].checkedIn = 'Yes';
+        var eventUpdateData = {
+          users: Object.fromEntries(users),
+        };
+        const rootRef = firebase.database().ref();
+        const eventRef = rootRef.child('events/' + this.state.curevent.key);
+        console.log(eventUpdateData);
+        this.setState({ users: users });
 
-      eventRef.update(eventUpdateData);
-      alert('You have checked in for this event.');
+        eventRef.update(eventUpdateData);
+        alert('You have checked in for this event.');
+      } else {
+        alert('You have already checked in for this event.');
+      }
     } else {
-      alert('You have already checked in for this event.');
+      alert('Sorry, you can only check in for events that you are invited to.');
     }
   }
 
   onFailedCheckIn() {
-    alert(
-      "This event isn't happening right now. Check in between this event's start time and end time."
-    );
+    var users = this.state.users;
+    if (JSON.stringify(users).includes(firebase.auth().currentUser.uid)) {
+      alert(
+        "This event isn't happening right now. Check in between this event's start time and end time."
+      );
+    } else {
+      alert('Sorry, you can only check in for events that you are invited to.');
+    }
   }
 
   render() {
@@ -185,7 +213,8 @@ export default class EventScreen extends React.Component {
           end={{ x: 1, y: 1 }}>
           <View style={styles.fill}>
             {this.state.showRsvpCard === false &&
-            this.state.showStatusCard === false ? (
+            this.state.showStatusCard === false &&
+            this.state.showCheckInCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
                   <Text
@@ -293,18 +322,6 @@ export default class EventScreen extends React.Component {
                   </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
-                  {/*
-                  {this.state.cursquad.organizer_id ===
-                    firebase.auth().currentUser.uid ||
-                  this.state.curevent.creator_id ===
-                    firebase.auth().currentUser.uid ? (
-                    <TouchableOpacity onPress={this.switchRsvpCard.bind(this)}>
-                      <View style={styles.customButton}>
-                        <Text style={styles.buttonText}>Check In</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : null}
-                  */}
                   {this.state.curdate > this.state.curevent.startAt &&
                   this.state.curdate < this.state.curevent.endAt ? (
                     <TouchableOpacity onPress={this.onCheckIn.bind(this)}>
@@ -313,13 +330,32 @@ export default class EventScreen extends React.Component {
                       </View>
                     </TouchableOpacity>
                   ) : (
-                    <TouchableOpacity onPress={this.onFailedCheckIn.bind(this)}>
-                      <View style={styles.customButton}>
-                        <Text style={[styles.buttonText, { color: 'grey' }]}>
-                          Check In
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
+                    <React.Fragment>
+                      {this.state.curdate > this.state.curevent.endAt &&
+                      (this.state.cursquad.organizer_id ===
+                        firebase.auth().currentUser.uid ||
+                        this.state.curevent.creator_id ===
+                          firebase.auth().currentUser.uid) ? (
+                        <TouchableOpacity
+                          onPress={this.switchCheckInCard.bind(this)}>
+                          <View style={styles.customButton}>
+                            <Text style={[styles.buttonText]}>
+                              Checked In List
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={this.onFailedCheckIn.bind(this)}>
+                          <View style={styles.customButton}>
+                            <Text
+                              style={[styles.buttonText, { color: 'grey' }]}>
+                              Check In
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    </React.Fragment>
                   )}
                   <TouchableOpacity onPress={this.switchRsvpCard.bind(this)}>
                     <View style={styles.customButton}>
@@ -346,26 +382,35 @@ export default class EventScreen extends React.Component {
                       width: Dimensions.get('window').width * 0.7,
                       marginBottom: Dimensions.get('window').height * 0.025,
                     }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignContent: 'center',
-                        textAlign: 'center',
-                        alignSelf: 'center',
-                      }}>
-                      <TouchableOpacity
-                        onPress={this.onSubmit.bind(this, 'Yes')}>
-                        <Text style={styles.info}>Yes</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={this.onSubmit.bind(this, 'No')}>
-                        <Text style={styles.info}>No</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={this.onSubmit.bind(this, 'Maybe')}>
-                        <Text style={styles.info}>Maybe</Text>
-                      </TouchableOpacity>
-                    </View>
+                    {JSON.stringify(this.state.users).includes(
+                      firebase.auth().currentUser.uid
+                    ) ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignContent: 'center',
+                          textAlign: 'center',
+                          alignSelf: 'center',
+                        }}>
+                        <TouchableOpacity
+                          onPress={this.onSubmit.bind(this, 'Yes')}>
+                          <Text style={styles.info}>Yes</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={this.onSubmit.bind(this, 'No')}>
+                          <Text style={styles.info}>No</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={this.onSubmit.bind(this, 'Maybe')}>
+                          <Text style={styles.info}>Maybe</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <Text style={styles.info}>
+                        Sorry, you can only RVSP for events that you are invited
+                        to.
+                      </Text>
+                    )}
                     <Text
                       style={[
                         styles.info,
@@ -377,7 +422,12 @@ export default class EventScreen extends React.Component {
                     </Text>
                     <View style={styles.line} />
                     <FlatList
-                      style={{ padding: 10, textAlign: 'center', alignContent: 'center', alignItems: 'center' }}
+                      style={{
+                        padding: 10,
+                        textAlign: 'center',
+                        alignContent: 'center',
+                        alignItems: 'center',
+                      }}
                       data={this.state.users}
                       extraData={this.state}
                       keyExtractor={(item, index) => index.toString()}
@@ -409,6 +459,57 @@ export default class EventScreen extends React.Component {
                   <TouchableOpacity onPress={this.switchRsvpCard.bind(this)}>
                     <View style={styles.customButton}>
                       <Text style={styles.buttonText}>Close RSVP</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </React.Fragment>
+            ) : null}
+            {this.state.showCheckInCard === true ? (
+              <React.Fragment>
+                <Card style={styles.resultsCard}>
+                  <Text
+                    style={[
+                      styles.info,
+                      { marginBottom: Dimensions.get('window').height * 0.01 },
+                    ]}>
+                    Checked in for {this.state.curevent.title}
+                  </Text>
+                  <View style={styles.line} />
+                  <ScrollView
+                    style={{
+                      height: Dimensions.get('window').height * 0.45,
+                      width: Dimensions.get('window').width * 0.7,
+                      marginBottom: Dimensions.get('window').height * 0.025,
+                    }}>
+                    <FlatList
+                      style={{
+                        padding: 10,
+                        textAlign: 'center',
+                        alignContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      data={this.state.users}
+                      extraData={this.state}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({ item }) => (
+                        <React.Fragment>
+                          {item[1].checkedIn === 'Yes' ? (
+                            <React.Fragment>
+                              <Text style={styles.assigneesInfo}>
+                                {item[1].user_name}
+                              </Text>
+                              <View style={styles.line} />
+                            </React.Fragment>
+                          ) : null}
+                        </React.Fragment>
+                      )}
+                    />
+                  </ScrollView>
+                </Card>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity onPress={this.switchCheckInCard.bind(this)}>
+                    <View style={styles.customButton}>
+                      <Text style={styles.buttonText}>Close List</Text>
                     </View>
                   </TouchableOpacity>
                 </View>

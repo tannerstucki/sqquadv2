@@ -32,8 +32,7 @@ export default class MyPollsScreen extends React.Component {
       squadOption: 'My Polls',
       noSquads: false,
       squads: [],
-      switchCardShow: false,
-      squadFilter: '',
+      switchSquadCardShow: false,
     };
   }
 
@@ -61,7 +60,19 @@ export default class MyPollsScreen extends React.Component {
           .on('value', snapshot => {
             var item = snapshot.val();
             item.key = snapshot.key;
-            item.responded = responded;
+
+            //get the responded status of the current user
+            var users = item.users;
+            var userIndex = users.findIndex(
+              obj => obj.user_id === firebase.auth().currentUser.uid
+            );
+            if (userIndex !== -1) {
+              item.responded = users[userIndex].responded;
+              item.answers = users[userIndex].answers;
+            } else {
+              item.responded = null;
+            }
+
             var switchArray = this.state.polls;
             var index = switchArray.findIndex(obj => obj.key === item.key);
             if (index !== -1) {
@@ -119,22 +130,103 @@ export default class MyPollsScreen extends React.Component {
     if (this.state.noSquads === true) {
       alert('Sorry, you have no squads. Join or create one to get started!');
     } else {
-      this.setState({ switchCardShow: true });
+      this.setState({ switchSquadCardShow: true });
     }
   }
 
   chooseSquad(item) {
-    if (item === 'My Polls') {
+    if (
+      item !== this.state.squadOption &&
+      item.name !== this.state.squadOption
+    ) {
+      this.setState(
+        { polls: [], noPolls: true },
+        this.updatePolls.bind(this, item)
+      );
+    }
+
+    this.setState({
+      switchSquadCardShow: false,
+    });
+  }
+
+  updatePolls(item) {
+    const rootRef = firebase.database().ref();
+    const pollsRef = rootRef.child('polls');
+
+    if (item.name) {
       this.setState({
-        squadFilter: '',
-        squadOption: 'My Polls',
-        switchCardShow: false,
+        squadOption: item.name,
+        squad_id: item.key,
+      });
+      var squad_data_ref = firebase
+        .database()
+        .ref('polls')
+        .orderByChild('squad_id')
+        .equalTo(item.key);
+      squad_data_ref.on('value', snapshot => {
+        snapshot.forEach(snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+
+          //get the responded status of the current user
+          var users = item.users;
+          var userIndex = users.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          if (userIndex !== -1) {
+            item.responded = users[userIndex].responded;
+            item.answers = users[userIndex].answers;
+          } else {
+            item.responded = null;
+          }
+
+          var switchArray = this.state.polls;
+          var index = switchArray.findIndex(obj => obj.key === item.key);
+          if (index == -1) {
+            switchArray.push(item);
+            this.setState({ polls: switchArray, noPolls: false });
+          }
+        });
       });
     } else {
       this.setState({
-        squadFilter: item.key,
-        squadOption: item.name,
-        switchCardShow: false,
+        squadOption: 'My Polls',
+        squad_id: '',
+      });
+      var user_data_ref = firebase
+        .database()
+        .ref('users/' + firebase.auth().currentUser.uid)
+        .child('polls');
+      user_data_ref.on('value', snapshot => {
+        snapshot.forEach(snapshot => {
+          pollsRef
+            .child(snapshot.val().poll_id)
+            .orderByChild('createdAt')
+            .on('value', snapshot => {
+              var item = snapshot.val();
+              item.key = snapshot.key;
+
+              //get the responded status of the current user
+              var users = item.users;
+              var userIndex = users.findIndex(
+                obj => obj.user_id === firebase.auth().currentUser.uid
+              );
+              if (userIndex !== -1) {
+                item.responded = users[userIndex].responded;
+                item.answers = users[userIndex].answers;
+              } else {
+                item.responded = null;
+              }
+
+              var switchArray = this.state.polls;
+              var index = switchArray.findIndex(obj => obj.key === item.key);
+              if (index === -1) {
+                switchArray.push(item);
+                this.setState({ polls: switchArray, noPolls: false });
+              }
+            });
+        });
       });
     }
   }
@@ -175,64 +267,83 @@ export default class MyPollsScreen extends React.Component {
               </React.Fragment>
             ) : (
               <React.Fragment>
-                {!this.state.switchCardShow ? (
+                {!this.state.switchSquadCardShow ? (
                   <View style={styles.container}>
-                    <Text>{this.state.noPolls}</Text>
-                    {this.state.noPolls == true ? (
+                    <React.Fragment>
+                      {Platform.OS === 'ios' || Platform.OS === 'android' ? (
+                        <TouchableOpacity
+                          onPress={this.switchSquadOption.bind(this)}>
+                          <View style={styles.optionView}>
+                            <Text style={styles.squadOption}>
+                              {this.state.squadOption}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={this.switchSquadOption.bind(this)}>
+                          <View>
+                            <Text style={styles.squadOption}>
+                              {this.state.squadOption}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    </React.Fragment>
+                    {this.state.noPolls === true ? (
                       <React.Fragment>
-                        <Text style={styles.noPolls}>
-                          Sorry, you have no polls.
-                        </Text>
-                        <Text style={styles.noPolls}>
-                          Create a poll for one of your squads!
-                        </Text>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        {Platform.OS === 'ios' || Platform.OS === 'android' ? (
-                          <TouchableOpacity
-                            onPress={this.switchSquadOption.bind(this)}>
-                            <View style={styles.optionView}>
-                              <Text style={styles.squadOption}>
-                                {this.state.squadOption}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
+                        {this.state.noSquads === true ? (
+                          <React.Fragment>
+                            <Text style={styles.noPolls}>
+                              Sorry, you have no polls.
+                            </Text>
+                            <Text style={styles.noPolls}>
+                              Polls have to be associated with a squad. Get
+                              started by creating or joining a squad!
+                            </Text>
+                          </React.Fragment>
                         ) : (
-                          <TouchableOpacity
-                            onPress={this.switchSquadOption.bind(this)}>
-                            <View>
-                              <Text style={styles.squadOption}>
-                                {this.state.squadOption}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
+                          <React.Fragment>
+                            <Text style={styles.noPolls}>
+                              Polls from your new squads will show up here.
+                            </Text>
+                            <Text style={styles.noPolls}>
+                              To see previously created polls for your squads,
+                              select a squad from the filter above!
+                            </Text>
+                          </React.Fragment>
                         )}
                       </React.Fragment>
-                    )}
+                    ) : null}
                     <FlatList
                       data={this.state.polls}
                       extraData={this.state}
                       renderItem={({ item }) => (
                         <React.Fragment>
-                          {(this.state.showClosed === true ||
-                            (this.state.showClosed === false &&
-                              item.status === 'open')) &&
-                          (this.state.squadFilter === '' ||
-                            this.state.squadFilter === item.squad_id) ? (
+                          {this.state.showClosed === true ||
+                          (this.state.showClosed === false &&
+                            item.status === 'open') ? (
                             <TouchableOpacity
                               onPress={this.openPoll.bind(this, item)}>
                               <Card style={styles.listCard}>
                                 <Text style={styles.info}>
                                   {item.question}{' '}
                                 </Text>
-                                {item.responded === true ? (
-                                  <Text style={styles.responded}>
-                                    You have completed this poll.
-                                  </Text>
+                                {item.responded !== null ? (
+                                  <React.Fragment>
+                                    {item.responded === true ? (
+                                      <Text style={styles.responded}>
+                                        You have completed this poll.
+                                      </Text>
+                                    ) : (
+                                      <Text style={styles.notResponded}>
+                                        You have not completed this poll yet.
+                                      </Text>
+                                    )}
+                                  </React.Fragment>
                                 ) : (
-                                  <Text style={styles.notResponded}>
-                                    You have not completed this poll yet.
+                                  <Text style={styles.responded}>
+                                    You were not asked to reply to this poll.
                                   </Text>
                                 )}
                               </Card>
@@ -325,7 +436,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   optionView: {
-    marginTop: Dimensions.get('window').height * -0.04,
+    marginTop: Dimensions.get('window').height * -0.015,
     height: Dimensions.get('window').height * 0.05,
     justifyContent: 'center',
     alignItems: 'center',
@@ -357,7 +468,7 @@ const styles = StyleSheet.create({
   noPolls: {
     fontSize: 20,
     padding: 10,
-    marginLeft: Dimensions.get('window').width * 0.045,
+    alignSelf: 'center',
     fontWeight: 'bold',
     color: 'white',
     marginTop: 20,

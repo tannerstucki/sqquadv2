@@ -112,6 +112,15 @@ export default class CreatePollScreen extends React.Component {
   }
 
   onCreatePress() {
+    var users = [];
+    for (let i = 0; i < Object.values(this.state.selectedSquad.users).length; i++){
+      users.push({
+        user_id: Object.values(this.state.selectedSquad.users)[i].user_id,
+        user_name: Object.values(this.state.selectedSquad.users)[i].name,
+        responded: false,
+      });
+    }
+
     var poll_type = '';
     if (this.state.poll_type === 'Single Response') {
       poll_type = 'single';
@@ -133,6 +142,7 @@ export default class CreatePollScreen extends React.Component {
         squad_id: this.state.selectedSquad.key,
         status: 'open',
         total_votes: 0,
+        users: users,
       })
       .then(snapshot => {
         var poll_id = snapshot.key;

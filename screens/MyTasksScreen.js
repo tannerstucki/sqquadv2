@@ -135,7 +135,7 @@ export default class MyTasksScreen extends React.Component {
   createTask() {
     NavigationService.navigate('CreateTaskScreen', {
       squads: this.state.squads,
-    })
+    });
   }
 
   chooseStatus(item) {
@@ -158,7 +158,10 @@ export default class MyTasksScreen extends React.Component {
       item !== this.state.squadOption &&
       item.name !== this.state.squadOption
     ) {
-      this.setState({ tasks: [] }, this.updateTasks.bind(this, item));
+      this.setState(
+        { tasks: [], noTasks: true },
+        this.updateTasks.bind(this, item)
+      );
     }
 
     this.setState({
@@ -248,40 +251,51 @@ export default class MyTasksScreen extends React.Component {
                   <React.Fragment>
                     {!this.state.switchStatusCardShow ? (
                       <View style={styles.container}>
-                        <Text>{this.state.noTasks}</Text>
-                        {this.state.noTasks == true ? (
+                        <React.Fragment>
+                          {Platform.OS === 'ios' ||
+                          Platform.OS === 'android' ? (
+                            <TouchableOpacity
+                              onPress={this.switchSquadOption.bind(this)}>
+                              <View style={styles.optionView}>
+                                <Text style={styles.squadOption}>
+                                  {this.state.squadOption}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              onPress={this.switchSquadOption.bind(this)}>
+                              <View>
+                                <Text style={styles.squadOption}>
+                                  {this.state.squadOption}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+                        </React.Fragment>
+                        {this.state.noTasks === true ? (
                           <React.Fragment>
-                            <Text style={styles.noTasks}>
-                              Sorry, you have no tasks.
-                            </Text>
-                            <Text style={styles.noTasks}>
-                              Create a task for yourself or a squad member!
-                            </Text>
-                          </React.Fragment>
-                        ) : (
-                          <React.Fragment>
-                            {Platform.OS === 'ios' ||
-                            Platform.OS === 'android' ? (
-                              <TouchableOpacity
-                                onPress={this.switchSquadOption.bind(this)}>
-                                <View style={styles.optionView}>
-                                  <Text style={styles.squadOption}>
-                                    {this.state.squadOption}
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
+                            {this.state.noSquads === true ? (
+                              <React.Fragment>
+                                <Text style={styles.noTasks}>
+                                  Sorry, you have no tasks.
+                                </Text>
+                                <Text style={styles.noTasks}>
+                                  Create a task for yourself or get started by creating or joining a squad!
+                                </Text>
+                              </React.Fragment>
                             ) : (
-                              <TouchableOpacity
-                                onPress={this.switchSquadOption.bind(this)}>
-                                <View>
-                                  <Text style={styles.squadOption}>
-                                    {this.state.squadOption}
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
+                              <React.Fragment>
+                                <Text style={styles.noTasks}>
+                                  Tasks from your new squads will show up here.
+                                </Text>
+                                <Text style={styles.noTasks}>
+                                  To see previously created tasks for your squads, select a squad from the filter above!
+                                </Text>
+                              </React.Fragment>
                             )}
                           </React.Fragment>
-                        )}
+                        ) : null}
                         <FlatList
                           data={this.state.tasks}
                           extraData={this.state}
@@ -471,7 +485,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   optionView: {
-    marginTop: Dimensions.get('window').height * -0.04,
+    marginTop: Dimensions.get('window').height * -0.015,
     height: Dimensions.get('window').height * 0.05,
     justifyContent: 'center',
     alignItems: 'center',
@@ -489,7 +503,7 @@ const styles = StyleSheet.create({
   noTasks: {
     fontSize: 20,
     padding: 10,
-    marginLeft: Dimensions.get('window').width * 0.045,
+    alignSelf: 'center',
     fontWeight: 'bold',
     color: 'white',
     marginTop: 20,

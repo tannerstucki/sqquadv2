@@ -119,27 +119,28 @@ export default class ThreadScreen extends React.Component {
 
   messagePress = (context, message) => {
     if (message.extra_info === 'poll') {
-      var data_ref = firebase
+      firebase
         .database()
-        .ref('users/' + firebase.auth().currentUser.uid)
-        .child('polls')
-        .orderByChild('poll_id')
-        .equalTo(message.extra_id);
-      data_ref.on('value', snapshot => {
-        var responded = Object.values(snapshot.val())[0].responded;
-        firebase
-          .database()
-          .ref('polls/' + message.extra_id)
-          .once('value', snapshot => {
-            var item = snapshot.val();
-            item.key = snapshot.key;
-            item.responded = responded;
-            NavigationService.navigate('PollScreen', {
-              curpoll: item,
-              pollName: this.state.threadName,
-            });
+        .ref('polls/' + message.extra_id)
+        .once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          //get the responded status of the current user
+          var users = item.users;
+          var userIndex = users.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          if (userIndex !== -1) {
+            item.responded = users[userIndex].responded;
+            item.answers = users[userIndex].answers;
+          } else {
+            item.responded = null;
+          }
+          NavigationService.navigate('PollScreen', {
+            curpoll: item,
+            pollName: this.state.threadName,
           });
-      });
+        });
     } else if (message.extra_info === 'task') {
       firebase
         .database()

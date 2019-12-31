@@ -28,11 +28,13 @@ export default class PollScreen extends React.Component {
     super(props);
     this.state = {
       curuser: '',
+      users: ['intitialize'],
       loading: true,
       curpoll: '',
       responses: ['intitialize'],
       showDetailsCard: false,
       showResultsCard: false,
+      showResponsesCard: false,
       checked: [],
       single: '',
       organizer_id: '',
@@ -50,9 +52,25 @@ export default class PollScreen extends React.Component {
       });
     }
 
+    const users = Object.entries(curpoll.users);
+    var selected_user = '';
+    if (users.length === 1) {
+      selected_user = users[0];
+    } else {
+      selected_user = [
+        '0',
+        {
+          user_id: 'initialize',
+          user_name: 'initialize',
+          status: 'initialize',
+        },
+      ];
+    }
+
     this.setState({
       curpoll: curpoll,
       responses: responses,
+      users: users,
     });
 
     var data_ref = firebase
@@ -75,6 +93,24 @@ export default class PollScreen extends React.Component {
       this.setState({ showDetailsCard: false });
     } else {
       this.setState({ showDetailsCard: true });
+    }
+  }
+
+  switchResponsesCard() {
+    console.log(this.state.curpoll);
+    if (this.state.showResponsesCard === true) {
+      this.setState({
+        showResponsesCard: false,
+        selected_user: [
+          '0',
+          {
+            user_id: 'initialize',
+            user_name: 'initialize',
+          },
+        ],
+      });
+    } else {
+      this.setState({ showResponsesCard: true });
     }
   }
 
@@ -123,13 +159,30 @@ export default class PollScreen extends React.Component {
         updatedPoll = snapshot.val();
 
         var responses = updatedPoll.responses;
+        var answers = '';
         for (let i = 0; i < this.state.checked.length; i++) {
           responses[this.state.checked[i]].votes =
             responses[this.state.checked[i]].votes + 1;
+          if (i < this.state.checked.length - 1) {
+            answers = answers + responses[this.state.checked[i]].text + ', ';
+          } else {
+            answers = answers + responses[this.state.checked[i]].text;
+          }
+        }
+
+        //get the responded status of the current user
+        var users = this.state.curpoll.users;
+        var userIndex = users.findIndex(
+          obj => obj.user_id === firebase.auth().currentUser.uid
+        );
+        if (userIndex !== -1) {
+          users[userIndex].answers = answers;
+          users[userIndex].responded = true;
         }
 
         var pollUpdateData = {
           responses: responses,
+          users: users,
           total_votes: updatedPoll.total_votes + 1,
         };
 
@@ -145,9 +198,13 @@ export default class PollScreen extends React.Component {
             responses: responses,
             squad_id: this.state.curpoll.squad_id,
             status: this.state.curpoll.status,
-            total_votes: this.state.curpoll.total_votes,
+            total_votes: this.state.curpoll.total_votes + 1,
             responded: true,
+            users: users,
+            answers: answers,
+            key: this.state.curpoll.key,
           },
+          users: Object.entries(users),
           responses: Object.entries(pollUpdateData.responses),
         });
 
@@ -176,6 +233,7 @@ export default class PollScreen extends React.Component {
         squad_id: this.state.curpoll.squad_id,
         status: 'closed',
         total_votes: this.state.curpoll.total_votes,
+        users: this.state.curpoll.users,
       };
       alert('You have closed this poll');
     } else {
@@ -189,11 +247,13 @@ export default class PollScreen extends React.Component {
         squad_id: this.state.curpoll.squad_id,
         status: 'open',
         total_votes: this.state.curpoll.total_votes,
+        users: this.state.curpoll.users,
       };
       alert('You have reopened this poll');
     }
 
     pollRef.update(pollUpdateData);
+    pollUpdateData.key = this.state.curpoll.key;
     this.setState({ curpoll: pollUpdateData });
     //NavigationService.navigate('MyPollsScreen');
   }
@@ -208,7 +268,8 @@ export default class PollScreen extends React.Component {
           <View style={styles.fill}>
             {this.state.curpoll.status === 'open' &&
             this.state.curpoll.responded === false &&
-            this.state.showDetailsCard === false ? (
+            this.state.showDetailsCard === false &&
+            this.state.showResponsesCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
                   <Text
@@ -328,71 +389,164 @@ export default class PollScreen extends React.Component {
                   </React.Fragment>
                 ) : (
                   <React.Fragment>
-                    <Card style={styles.resultsCard}>
-                      <Text
-                        style={[
-                          styles.info,
-                          {
-                            marginBottom:
-                              Dimensions.get('window').height * 0.01,
-                          },
-                        ]}>
-                        {this.state.curpoll.question}
-                      </Text>
-                      {this.state.curpoll.creator_id ===
-                        firebase.auth().currentUser.uid ||
-                      this.state.organizer_id ===
-                        firebase.auth().currentUser.uid ? (
-                        <Text style={styles.pollTypeInfo}>Results</Text>
-                      ) : (
-                        <React.Fragment>
-                          <Text style={styles.pollTypeInfo}>
-                            You have completed this poll.
+                    {this.state.showResponsesCard === true ? (
+                      <React.Fragment>
+                        <Card style={styles.resultsCard}>
+                          <Text
+                            style={[
+                              styles.info,
+                              {
+                                marginBottom:
+                                  Dimensions.get('window').height * 0.01,
+                              },
+                            ]}>
+                            {this.state.curpoll.question}
                           </Text>
-                          <Text style={styles.pollTypeInfo}>
-                            The poll creator or squad organizer can share the
-                            results with you.
-                          </Text>
-                        </React.Fragment>
-                      )}
-                      <View style={styles.line} />
-                      <FlatList
-                        style={{ padding: 10 }}
-                        extraData={this.state}
-                        data={this.state.responses}
-                        keyExtractor={(item, index) => index.toString()}
-                        renderItem={({ item }) => (
-                          <React.Fragment>
-                            <View
+                          <View style={styles.line} />
+                          <ScrollView
+                            style={{
+                              height: Dimensions.get('window').height * 0.45,
+                              width: Dimensions.get('window').width * 0.7,
+                              marginBottom:
+                                Dimensions.get('window').height * 0.025,
+                            }}>
+                            <FlatList
                               style={{
-                                flexDirection: 'row',
-                              }}>
-                              {this.state.curpoll.creator_id ===
-                                firebase.auth().currentUser.uid ||
-                              this.state.organizer_id ===
-                                firebase.auth().currentUser.uid ? (
-                                <Text style={styles.responseInfo}>
-                                  {item[1].text}: {item[1].votes} Votes
-                                </Text>
-                              ) : (
-                                <Text style={styles.responseInfo}>
-                                  {item[1].text}
-                                </Text>
+                                padding: 10,
+                                textAlign: 'center',
+                                alignContent: 'center',
+                                alignItems: 'center',
+                              }}
+                              data={this.state.users}
+                              extraData={this.state}
+                              keyExtractor={(item, index) => index.toString()}
+                              renderItem={({ item }) => (
+                                <React.Fragment>
+                                  {item[1].answers !== undefined ? (
+                                    <React.Fragment>
+                                      <Text style={styles.responseInfo}>
+                                        {item[1].answers}
+                                      </Text>
+                                      <View style={styles.line} />
+                                      <Text style={styles.answersGeneric}>
+                                        {item[1].user_name}
+                                      </Text>
+                                    </React.Fragment>
+                                  ) : null}
+                                </React.Fragment>
                               )}
+                            />
+                          </ScrollView>
+                        </Card>
+                        <View style={styles.buttonRow}>
+                          <TouchableOpacity
+                            onPress={this.switchResponsesCard.bind(this)}>
+                            <View style={styles.customButton}>
+                              <Text style={styles.buttonText}>Close List</Text>
                             </View>
-                            <View style={styles.greyLine} />
-                          </React.Fragment>
-                        )}
-                      />
-                    </Card>
-                    <View style={styles.buttonRow}>
-                      <TouchableOpacity
-                        onPress={this.switchDetailsCard.bind(this)}>
-                        <View style={styles.customButton}>
-                          <Text style={styles.buttonText}>See Details</Text>
+                          </TouchableOpacity>
                         </View>
-                      </TouchableOpacity>
-                    </View>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <Card style={styles.resultsCard}>
+                          <Text
+                            style={[
+                              styles.info,
+                              {
+                                marginBottom:
+                                  Dimensions.get('window').height * 0.01,
+                              },
+                            ]}>
+                            {this.state.curpoll.question}
+                          </Text>
+                          {this.state.curpoll.creator_id ===
+                            firebase.auth().currentUser.uid ||
+                          this.state.organizer_id ===
+                            firebase.auth().currentUser.uid ? (
+                            <Text style={styles.pollTypeInfo}>Results</Text>
+                          ) : (
+                            <React.Fragment>
+                              {this.state.curpoll.responded !== null ? (
+                                <React.Fragment>
+                                  <Text style={styles.pollTypeInfo}>
+                                    You have completed this poll.
+                                  </Text>
+                                  <Text style={styles.pollTypeInfo}>
+                                    The poll creator or squad organizer can
+                                    share the results with you.
+                                  </Text>
+                                  <View style={styles.line} />
+                                  <Text style={styles.pollTypeInfo}>
+                                    You answered: {this.state.curpoll.answers}
+                                  </Text>
+                                </React.Fragment>
+                              ) : (
+                                <React.Fragment>
+                                  <Text style={styles.pollTypeInfo}>
+                                    You were not asked to reply to this poll.
+                                  </Text>
+                                  <Text style={styles.pollTypeInfo}>
+                                    The poll creator or squad organizer can
+                                    share the results with you.
+                                  </Text>
+                                </React.Fragment>
+                              )}
+                            </React.Fragment>
+                          )}
+                          <View style={styles.line} />
+                          <FlatList
+                            style={{ padding: 10 }}
+                            extraData={this.state}
+                            data={this.state.responses}
+                            keyExtractor={(item, index) => index.toString()}
+                            renderItem={({ item }) => (
+                              <React.Fragment>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                  }}>
+                                  {this.state.curpoll.creator_id ===
+                                    firebase.auth().currentUser.uid ||
+                                  this.state.organizer_id ===
+                                    firebase.auth().currentUser.uid ? (
+                                    <Text style={styles.responseInfo}>
+                                      {item[1].text}: {item[1].votes} Votes
+                                    </Text>
+                                  ) : (
+                                    <Text style={styles.responseInfo}>
+                                      {item[1].text}
+                                    </Text>
+                                  )}
+                                </View>
+                                <View style={styles.greyLine} />
+                              </React.Fragment>
+                            )}
+                          />
+                        </Card>
+                        <View style={styles.buttonRow}>
+                          {this.state.curpoll.creator_id ===
+                            firebase.auth().currentUser.uid ||
+                          this.state.organizer_id ===
+                            firebase.auth().currentUser.uid ? (
+                            <TouchableOpacity
+                              onPress={this.switchResponsesCard.bind(this)}>
+                              <View style={styles.customButton}>
+                                <Text style={styles.buttonText}>
+                                  See Responses
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          ) : null}
+                          <TouchableOpacity
+                            onPress={this.switchDetailsCard.bind(this)}>
+                            <View style={styles.customButton}>
+                              <Text style={styles.buttonText}>See Details</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      </React.Fragment>
+                    )}
                   </React.Fragment>
                 )}
               </React.Fragment>
@@ -438,6 +592,12 @@ const styles = StyleSheet.create({
   generic: {
     fontSize: 12,
     marginLeft: Dimensions.get('window').width * 0.025,
+    color: '#8F8F8F',
+  },
+  answersGeneric: {
+    fontSize: 12,
+    marginLeft: Dimensions.get('window').width * 0.025,
+    marginBottom: Dimensions.get('window').height * 0.025,
     color: '#8F8F8F',
   },
   fill: {
