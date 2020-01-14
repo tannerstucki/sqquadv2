@@ -281,7 +281,8 @@ export default class MyTasksScreen extends React.Component {
                                   Sorry, you have no tasks.
                                 </Text>
                                 <Text style={styles.noTasks}>
-                                  Create a task for yourself or get started by creating or joining a squad!
+                                  Create a task for yourself or get started by
+                                  creating or joining a squad!
                                 </Text>
                               </React.Fragment>
                             ) : (
@@ -290,7 +291,8 @@ export default class MyTasksScreen extends React.Component {
                                   Tasks from your new squads will show up here.
                                 </Text>
                                 <Text style={styles.noTasks}>
-                                  To see previously created tasks for your squads, select a squad from the filter above!
+                                  To see previously created tasks for your
+                                  squads, select a squad from the filter above!
                                 </Text>
                               </React.Fragment>
                             )}
@@ -520,6 +522,9 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.05,
     marginBottom: Dimensions.get('window').height * -0.01,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   assignedTo: {
     fontSize: 12,
@@ -545,6 +550,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 15,
     marginTop: Dimensions.get('window').height * 0.025,
+    shadowOffset: { width: 7, height: 7 },
+    shadowColor: 'black',
+    shadowOpacity: .2,
   },
   resultsCard: {
     width: Dimensions.get('window').width * 0.75,
@@ -554,6 +562,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 15,
     position: 'absolute',
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   line: {
     backgroundColor: '#5B4FFF',

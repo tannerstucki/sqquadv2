@@ -626,6 +626,9 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.05,
     marginBottom: Dimensions.get('window').height * 0.05,
     alignSelf: 'center',
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   resultsCard: {
     width: Dimensions.get('window').width * 0.75,
@@ -636,6 +639,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'absolute',
     marginTop: Dimensions.get('window').height * 0.2,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   info: {
     fontSize: 20,

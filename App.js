@@ -32,6 +32,9 @@ import TaskScreen from './screens/Tasks/TaskScreen';
 import CreateTaskScreen from './screens/Tasks/CreateTaskScreen';
 import EventScreen from './screens/Events/EventScreen';
 import CreateEventScreen from './screens/Events/CreateEventScreen';
+import MySchedulersScreen from './screens/Schedulers/MySchedulersScreen';
+import SchedulerScreen from './screens/Schedulers/SchedulerScreen';
+import CreateSchedulerScreen from './screens/Schedulers/CreateSchedulerScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -52,6 +55,9 @@ const RootStackNavigator = createStackNavigator({
   CreateTaskScreen,
   EventScreen,
   CreateEventScreen,
+  MySchedulersScreen,
+  SchedulerScreen,
+  CreateSchedulerScreen,
   ThreadScreen: {
     screen: ThreadScreen,
     navigationOptions({ navigation }) {

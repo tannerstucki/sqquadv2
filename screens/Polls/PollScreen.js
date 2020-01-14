@@ -15,6 +15,7 @@ import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, RadioButton } from 'react-native-paper';
 import { CheckBox } from 'react-native-elements';
+import Moment from 'moment';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class PollScreen extends React.Component {
@@ -45,26 +46,12 @@ export default class PollScreen extends React.Component {
     const { params } = this.props.navigation.state;
     const curpoll = params.curpoll;
     const responses = Object.entries(curpoll.responses);
+    const users = Object.entries(curpoll.users);
 
     if (curpoll.responded) {
       responses.sort(function(response1, response2) {
         return response1[1].votes < response2[1].votes;
       });
-    }
-
-    const users = Object.entries(curpoll.users);
-    var selected_user = '';
-    if (users.length === 1) {
-      selected_user = users[0];
-    } else {
-      selected_user = [
-        '0',
-        {
-          user_id: 'initialize',
-          user_name: 'initialize',
-          status: 'initialize',
-        },
-      ];
     }
 
     this.setState({
@@ -101,13 +88,6 @@ export default class PollScreen extends React.Component {
     if (this.state.showResponsesCard === true) {
       this.setState({
         showResponsesCard: false,
-        selected_user: [
-          '0',
-          {
-            user_id: 'initialize',
-            user_name: 'initialize',
-          },
-        ],
       });
     } else {
       this.setState({ showResponsesCard: true });
@@ -454,9 +434,15 @@ export default class PollScreen extends React.Component {
                             <React.Fragment>
                               {this.state.curpoll.responded !== null ? (
                                 <React.Fragment>
-                                  <Text style={styles.pollTypeInfo}>
-                                    You have completed this poll.
-                                  </Text>
+                                  {this.state.curpoll.responded === true ? (
+                                    <Text style={styles.pollTypeInfo}>
+                                      You have completed this poll.
+                                    </Text>
+                                  ) : (
+                                    <Text style={styles.pollTypeInfo}>
+                                      This poll is closed.
+                                    </Text>
+                                  )}
                                   <Text style={styles.pollTypeInfo}>
                                     The poll creator or squad organizer can
                                     share the results with you.
@@ -597,6 +583,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 15,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   line: {
     backgroundColor: '#5B4FFF',
@@ -625,6 +614,9 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.05,
     marginBottom: Dimensions.get('window').height * -0.01,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   buttonText: {
     color: 'white',

@@ -16,9 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from 'react-native-paper';
 import NavigationService from '../../navigation/NavigationService';
 
-export default class MyPollsScreen extends React.Component {
+export default class MySchedulersScreen extends React.Component {
   static navigationOptions = {
-    title: 'Polls',
+    title: 'Schedule Assistant',
   };
 
   constructor(props) {
@@ -26,10 +26,10 @@ export default class MyPollsScreen extends React.Component {
     this.state = {
       curuser: '',
       loading: true,
-      polls: [],
-      noPolls: true,
+      schedulers: [],
+      noSchedulers: true,
       showClosed: false,
-      squadOption: 'My Polls',
+      squadOption: 'My Time Requests',
       noSquads: false,
       squads: [],
       switchSquadCardShow: false,
@@ -45,16 +45,16 @@ export default class MyPollsScreen extends React.Component {
     });
 
     const rootRef = firebase.database().ref();
-    const pollsRef = rootRef.child('polls');
+    const schedulersRef = rootRef.child('schedulers');
 
     var data_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid)
-      .child('polls');
+      .child('schedulers');
     data_ref.on('value', snapshot => {
       snapshot.forEach(snapshot => {
-        pollsRef
-          .child(snapshot.val().poll_id)
+        schedulersRef
+          .child(snapshot.val().scheduler_id)
           .orderByChild('createdAt')
           .on('value', snapshot => {
             var item = snapshot.val();
@@ -67,20 +67,19 @@ export default class MyPollsScreen extends React.Component {
             );
             if (userIndex !== -1) {
               item.responded = users[userIndex].responded;
-              item.answers = users[userIndex].answers;
             } else {
               item.responded = null;
             }
 
-            var switchArray = this.state.polls;
+            var switchArray = this.state.schedulers;
             var index = switchArray.findIndex(obj => obj.key === item.key);
             if (index !== -1) {
               switchArray.splice(index, 1);
               switchArray.unshift(item);
-              this.setState({ polls: switchArray, noPolls: false });
+              this.setState({ schedulers: switchArray, noSchedulers: false });
             } else {
               switchArray.push(item);
-              this.setState({ polls: switchArray, noPolls: false });
+              this.setState({ schedulers: switchArray, noSchedulers: false });
             }
           });
       });
@@ -139,8 +138,8 @@ export default class MyPollsScreen extends React.Component {
       item.name !== this.state.squadOption
     ) {
       this.setState(
-        { polls: [], noPolls: true },
-        this.updatePolls.bind(this, item)
+        { schedulers: [], noSchedulers: true },
+        this.updateSchedulers.bind(this, item)
       );
     }
 
@@ -149,9 +148,9 @@ export default class MyPollsScreen extends React.Component {
     });
   }
 
-  updatePolls(item) {
+  updateSchedulers(item) {
     const rootRef = firebase.database().ref();
-    const pollsRef = rootRef.child('polls');
+    const schedulersRef = rootRef.child('schedulers');
 
     if (item.name) {
       this.setState({
@@ -160,7 +159,7 @@ export default class MyPollsScreen extends React.Component {
       });
       var squad_data_ref = firebase
         .database()
-        .ref('polls')
+        .ref('schedulers')
         .orderByChild('squad_id')
         .equalTo(item.key);
       squad_data_ref.on('value', snapshot => {
@@ -175,32 +174,31 @@ export default class MyPollsScreen extends React.Component {
           );
           if (userIndex !== -1) {
             item.responded = users[userIndex].responded;
-            item.answers = users[userIndex].answers;
           } else {
             item.responded = null;
           }
 
-          var switchArray = this.state.polls;
+          var switchArray = this.state.schedulers;
           var index = switchArray.findIndex(obj => obj.key === item.key);
           if (index == -1) {
             switchArray.push(item);
-            this.setState({ polls: switchArray, noPolls: false });
+            this.setState({ schedulers: switchArray, noSchedulers: false });
           }
         });
       });
     } else {
       this.setState({
-        squadOption: 'My Polls',
+        squadOption: 'My Time Requests',
         squad_id: '',
       });
       var user_data_ref = firebase
         .database()
         .ref('users/' + firebase.auth().currentUser.uid)
-        .child('polls');
+        .child('schedulers');
       user_data_ref.on('value', snapshot => {
         snapshot.forEach(snapshot => {
-          pollsRef
-            .child(snapshot.val().poll_id)
+          schedulersRef
+            .child(snapshot.val().scheduler_id)
             .orderByChild('createdAt')
             .on('value', snapshot => {
               var item = snapshot.val();
@@ -213,16 +211,15 @@ export default class MyPollsScreen extends React.Component {
               );
               if (userIndex !== -1) {
                 item.responded = users[userIndex].responded;
-                item.answers = users[userIndex].answers;
               } else {
                 item.responded = null;
               }
 
-              var switchArray = this.state.polls;
+              var switchArray = this.state.schedulers;
               var index = switchArray.findIndex(obj => obj.key === item.key);
               if (index === -1) {
                 switchArray.push(item);
-                this.setState({ polls: switchArray, noPolls: false });
+                this.setState({ schedulers: switchArray, noSchedulers: false });
               }
             });
         });
@@ -230,23 +227,23 @@ export default class MyPollsScreen extends React.Component {
     }
   }
 
-  openPoll(curpoll) {
-    var pollName;
+  openScheduler(curscheduler) {
+    var schedulerName;
     for (let i = 0; i < this.state.squads.length; i++) {
-      if (this.state.squads[i].key === curpoll.squad_id) {
-        pollName = this.state.squads[i].name;
+      if (this.state.squads[i].key === curscheduler.squad_id) {
+        schedulerName = this.state.squads[i].name;
         break;
       }
     }
 
-    NavigationService.navigate('PollScreen', {
-      curpoll: curpoll,
-      pollName: pollName,
+    NavigationService.navigate('SchedulerScreen', {
+      curscheduler: curscheduler,
+      schedulerName: schedulerName,
     });
   }
 
-  createPoll() {
-    NavigationService.navigate('CreatePollScreen', {
+  createScheduler() {
+    NavigationService.navigate('CreateSchedulerScreen', {
       squads: this.state.squads,
     });
   }
@@ -289,33 +286,35 @@ export default class MyPollsScreen extends React.Component {
                         </TouchableOpacity>
                       )}
                     </React.Fragment>
-                    {this.state.noPolls === true ? (
+                    {this.state.noSchedulers === true ? (
                       <React.Fragment>
                         {this.state.noSquads === true ? (
                           <React.Fragment>
-                            <Text style={styles.noPolls}>
-                              Sorry, you have no polls.
+                            <Text style={styles.noSchedulers}>
+                              Sorry, you have no time requests.
                             </Text>
-                            <Text style={styles.noPolls}>
-                              Polls have to be associated with a squad. Get
-                              started by creating or joining a squad!
+                            <Text style={styles.noSchedulers}>
+                              To use the schedule assistant, it must be
+                              associated with a squad. Get started by creating
+                              or joining a squad!
                             </Text>
                           </React.Fragment>
                         ) : (
                           <React.Fragment>
-                            <Text style={styles.noPolls}>
-                              Polls from your new squads will show up here.
+                            <Text style={styles.noSchedulers}>
+                              Time requests from your new squads will show up
+                              here.
                             </Text>
-                            <Text style={styles.noPolls}>
-                              To see previously created polls for your squads,
-                              select a squad from the filter above!
+                            <Text style={styles.noSchedulers}>
+                              To see previously created time requests for your
+                              squads, select a squad from the filter above!
                             </Text>
                           </React.Fragment>
                         )}
                       </React.Fragment>
                     ) : null}
                     <FlatList
-                      data={this.state.polls}
+                      data={this.state.schedulers}
                       extraData={this.state}
                       renderItem={({ item }) => (
                         <React.Fragment>
@@ -323,26 +322,28 @@ export default class MyPollsScreen extends React.Component {
                           (this.state.showClosed === false &&
                             item.status === 'open') ? (
                             <TouchableOpacity
-                              onPress={this.openPoll.bind(this, item)}>
+                              onPress={this.openScheduler.bind(this, item)}>
                               <Card style={styles.listCard}>
                                 <Text style={styles.info}>
-                                  {item.question}{' '}
+                                  {item.title}{' '}
                                 </Text>
                                 {item.responded !== null ? (
                                   <React.Fragment>
                                     {item.responded === true ? (
                                       <Text style={styles.responded}>
-                                        You have completed this poll.
+                                        You have completed this time request.
                                       </Text>
                                     ) : (
                                       <Text style={styles.notResponded}>
-                                        You have not completed this poll yet.
+                                        You have not completed this time request
+                                        yet.
                                       </Text>
                                     )}
                                   </React.Fragment>
                                 ) : (
                                   <Text style={styles.responded}>
-                                    You were not asked to reply to this poll.
+                                    You were not asked to reply to this time
+                                    request.
                                   </Text>
                                 )}
                               </Card>
@@ -352,9 +353,12 @@ export default class MyPollsScreen extends React.Component {
                       )}
                     />
                     <View style={styles.buttonRow}>
-                      <TouchableOpacity onPress={this.createPoll.bind(this)}>
+                      <TouchableOpacity
+                        onPress={this.createScheduler.bind(this)}>
                         <View style={styles.customButton}>
-                          <Text style={styles.buttonText}>New Poll</Text>
+                          <Text style={styles.buttonText}>
+                            New Request
+                          </Text>
                         </View>
                       </TouchableOpacity>
                       {this.state.showClosed === true ? (
@@ -377,13 +381,13 @@ export default class MyPollsScreen extends React.Component {
                 ) : (
                   <Card style={styles.resultsCard}>
                     <TouchableOpacity
-                      onPress={this.chooseSquad.bind(this, 'My Polls')}>
+                      onPress={this.chooseSquad.bind(this, 'My Time Requests')}>
                       <Text
                         style={[
                           styles.info,
                           { fontSize: 20, textAlign: 'center' },
                         ]}>
-                        My Polls
+                        My Time Requests
                       </Text>
                     </TouchableOpacity>
                     <View style={styles.line} />
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
     paddingTop: 22,
     paddingBottom: 50,
   },
-  noPolls: {
+  noSchedulers: {
     fontSize: 20,
     padding: 10,
     alignSelf: 'center',

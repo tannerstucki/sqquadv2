@@ -172,6 +172,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Dimensions.get('window').height * 0.1,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   buttonText: {
     color: 'white',

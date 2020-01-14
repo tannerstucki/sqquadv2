@@ -323,6 +323,7 @@ export default class CreateTaskScreen extends React.Component {
                       style={styles.title_input}
                       placeholder="Task Title"
                       placeholderTextColor="#F4F4F4"
+                      selectionColor="white"
                       multiline
                       blurOnSubmit
                       onChangeText={title => this.setState({ title })}
@@ -332,6 +333,7 @@ export default class CreateTaskScreen extends React.Component {
                       style={styles.title_input}
                       placeholder="Description"
                       placeholderTextColor="#F4F4F4"
+                      selectionColor="white"
                       multiline
                       blurOnSubmit
                       onChangeText={description =>
@@ -616,6 +618,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'absolute',
     margin: Dimensions.get('window').height * 0.15,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   customButton: {
     backgroundColor: 'black',
@@ -627,6 +632,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Dimensions.get('window').height * 0.05,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   buttonRow: {
     flexDirection: 'row',

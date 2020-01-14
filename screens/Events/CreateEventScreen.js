@@ -141,13 +141,16 @@ export default class CreateEventScreen extends React.Component {
     });
 
     var today = new Date();
-    var month = today.getMonth() + 1;
-    var fullDate =
-      today.getFullYear().toString() +
-      '-' +
-      month.toString() +
-      '-' +
-      today.getDate().toString();
+    var month = (today.getMonth() + 1).toString();
+    var day = today.getDate().toString();
+    if (month.length === 1) {
+      month = '0' + month;
+    }
+    if (day.length === 1) {
+      day = '0' + day;
+    }
+    var fullDate = today.getFullYear().toString() + '-' + month + '-' + day;
+
     this.setState({
       loading: false,
       dateSelected: {
@@ -579,6 +582,7 @@ export default class CreateEventScreen extends React.Component {
                         style={styles.title_input}
                         placeholder="Event Title"
                         placeholderTextColor="#F4F4F4"
+                        selectionColor="white"
                         multiline
                         blurOnSubmit
                         onChangeText={title => this.setState({ title })}
@@ -588,6 +592,7 @@ export default class CreateEventScreen extends React.Component {
                         style={styles.title_input}
                         placeholder="Description"
                         placeholderTextColor="#F4F4F4"
+                        selectionColor="white"
                         multiline
                         blurOnSubmit
                         onChangeText={description =>
@@ -613,13 +618,13 @@ export default class CreateEventScreen extends React.Component {
                       </TouchableOpacity>
                       <View style={styles.line} />
                       <Text style={[styles.info, { fontWeight: 'bold' }]}>
-                        Assignees:
+                        Invitees:
                       </Text>
                       {this.state.assignees.length === 0 &&
                       this.state.selectedSquad.name !==
                         'Personal Event (No Squad Selected)' ? (
                         <Text style={styles.noSquads}>
-                          Add assignees with the button below!
+                          Add invitees with the button below!
                         </Text>
                       ) : null}
                       {this.state.assignees.length === 0 &&
@@ -668,7 +673,7 @@ export default class CreateEventScreen extends React.Component {
                                 styles.buttonText,
                                 { color: assignee_text_color },
                               ]}>
-                              Add Assignees
+                              Add Invitees
                             </Text>
                           </View>
                         </TouchableOpacity>
@@ -738,7 +743,7 @@ export default class CreateEventScreen extends React.Component {
                                 Dimensions.get('window').height * 0.025,
                             },
                           ]}>
-                          Assign to all members
+                          Invite all members
                         </Text>
                         <View style={styles.card_line} />
                       </TouchableOpacity>
@@ -866,6 +871,9 @@ export default class CreateEventScreen extends React.Component {
                           marginBottom: Dimensions.get('window').height * 0.025,
                           paddingBottom: Dimensions.get('window').height * 0.02,
                           alignSelf: 'center',
+                          shadowOffset: { width: 12, height: 12 },
+                          shadowColor: 'black',
+                          shadowOpacity: 0.15,
                         }}
                         //markedDates={this.state.events}
                       />
@@ -1031,6 +1039,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'absolute',
     margin: Dimensions.get('window').height * 0.15,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: 0.15,
   },
   customButton: {
     backgroundColor: 'black',
@@ -1042,6 +1053,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Dimensions.get('window').height * 0.05,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: 0.5,
   },
   buttonRow: {
     flexDirection: 'row',

@@ -106,7 +106,11 @@ export default class MyEventsScreen extends React.Component {
               ).format('YYYY-MM-DD');
 
               var calendarDots = this.state.calendarDots;
-              calendarDots[objectTitle] = { marked: true, dotColor: '#5B4FFF' };
+              calendarDots[objectTitle] = {
+                /*marked: true, dotColor: '#5B4FFF'*/
+                selected: true,
+                selectedColor: '#D616CF',
+              };
 
               var calendarStripDots = this.state.calendarStripDots;
               calendarStripDots.push({
@@ -126,13 +130,16 @@ export default class MyEventsScreen extends React.Component {
     });
 
     var today = new Date();
-    var month = today.getMonth() + 1;
-    var fullDate =
-      today.getFullYear().toString() +
-      '-' +
-      month.toString() +
-      '-' +
-      today.getDate().toString();
+    var month = (today.getMonth() + 1).toString();
+    var day = today.getDate().toString();
+    if (month.length === 1) {
+      month = '0' + month;
+    }
+    if (day.length === 1) {
+      day = '0' + day;
+    }
+    var fullDate = today.getFullYear().toString() + '-' + month + '-' + day;
+
     this.setState({
       loading: false,
       dateSelected: {
@@ -200,7 +207,11 @@ export default class MyEventsScreen extends React.Component {
             ).format('YYYY-MM-DD');
 
             var calendarDots = this.state.calendarDots;
-            calendarDots[objectTitle] = { marked: true, dotColor: '#5B4FFF' };
+            calendarDots[objectTitle] = {
+              /*marked: true, dotColor: '#5B4FFF'*/
+              selected: true,
+              selectedColor: '#D616CF',
+            };
 
             var calendarStripDots = this.state.calendarStripDots;
             calendarStripDots.push({
@@ -247,8 +258,10 @@ export default class MyEventsScreen extends React.Component {
 
                 var calendarDots = this.state.calendarDots;
                 calendarDots[objectTitle] = {
-                  marked: true,
-                  dotColor: '#5B4FFF',
+                  /*marked: true,
+                  dotColor: '#5B4FFF',*/
+                  selected: true,
+                  selectedColor: '#D616CF',
                 };
 
                 var calendarStripDots = this.state.calendarStripDots;
@@ -281,9 +294,26 @@ export default class MyEventsScreen extends React.Component {
       );
     }
 
-    this.setState({
-      switchSquadCardShow: false,
-    });
+    //this if checks to see that the calendar is showing and basically reloads it to regenerate dots
+    if (this.state.calendarShow) {
+      this.setState(
+        {
+          switchSquadCardShow: false,
+          calendarShow: false,
+        },
+        () => {
+          this.setState({
+            switchSquadCardShow: false,
+            calendarShow: true,
+          });
+        }
+      );
+    } else {
+      this.setState({
+        switchSquadCardShow: false,
+        calendarShow: false,
+      });
+    }
   }
 
   openEvent(curevent) {
@@ -309,6 +339,10 @@ export default class MyEventsScreen extends React.Component {
     NavigationService.navigate('CreateEventScreen', {
       squads: this.state.squads,
     });
+  }
+
+  openScheduler() {
+    NavigationService.navigate('MySchedulersScreen', {});
   }
 
   render() {
@@ -368,6 +402,9 @@ export default class MyEventsScreen extends React.Component {
                               Dimensions.get('window').height * 0.025,
                             paddingBottom:
                               Dimensions.get('window').height * 0.02,
+                            shadowOffset: { width: 12, height: 12 },
+                            shadowColor: 'black',
+                            shadowOpacity: 0.15,
                           }}
                         />
                         {/*this flatlist is just to align the two different calendars*/}
@@ -449,6 +486,9 @@ export default class MyEventsScreen extends React.Component {
                               borderRadius: 15,
                               paddingHorizontal: 5,
                               fontWeight: 'regular',
+                              shadowOffset: { width: 7, height: 7 },
+                              shadowColor: 'black',
+                              shadowOpacity: 0.2,
                             }}
                           />
                         </TouchableOpacity>
@@ -628,9 +668,11 @@ export default class MyEventsScreen extends React.Component {
                           <Text style={styles.buttonText}>New Event</Text>
                         </View>
                       </TouchableOpacity>
-                      <TouchableOpacity>
+                      <TouchableOpacity onPress={this.openScheduler.bind(this)}>
                         <View style={styles.customButton}>
-                          <Text style={styles.buttonText}>Find Time</Text>
+                          <Text style={styles.buttonText}>
+                            Schedule Assistant
+                          </Text>
                         </View>
                       </TouchableOpacity>
                     </View>
@@ -735,8 +777,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: Dimensions.get('window').height * 0.05,
-    //marginBottom: Dimensions.get('window').height * -0.1,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',
@@ -756,6 +800,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 15,
     marginTop: Dimensions.get('window').height * 0.025,
+    shadowOffset: { width: 7, height: 7 },
+    shadowColor: 'black',
+    shadowOpacity: 0.2,
   },
   resultsCard: {
     width: Dimensions.get('window').width * 0.75,
@@ -765,6 +812,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 15,
     position: 'absolute',
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: 0.15,
   },
   line: {
     backgroundColor: '#5B4FFF',

@@ -70,7 +70,6 @@ export default class ThreadScreen extends React.Component {
 
     messagesRef
       .orderByChild('thread')
-      //.equalTo(curthread.thread)
       .equalTo(thread_id)
       .on('child_added', snapshot => {
         const { createdAt, text, user, extra_info, extra_id } = snapshot.val();
@@ -92,7 +91,6 @@ export default class ThreadScreen extends React.Component {
   onSend(messages) {
     for (let i = 0; i < messages.length; i++) {
       const { text, user, createdAt } = messages[i];
-      //const thread = this.state.curthread.thread;
       const thread = this.state.curthread;
       user.name =
         this.state.curuser.first_name + ' ' + this.state.curuser.last_name;
@@ -163,6 +161,28 @@ export default class ThreadScreen extends React.Component {
           NavigationService.navigate('EventScreen', {
             curevent: item,
             eventName: this.state.threadName,
+          });
+        });
+    } else if (message.extra_info === 'scheduler') {
+      firebase
+        .database()
+        .ref('schedulers/' + message.extra_id)
+        .once('value', snapshot => {
+          var item = snapshot.val();
+          item.key = snapshot.key;
+          //get the responded status of the current user
+          var users = item.users;
+          var userIndex = users.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          if (userIndex !== -1) {
+            item.responded = users[userIndex].responded;
+          } else {
+            item.responded = null;
+          }
+          NavigationService.navigate('SchedulerScreen', {
+            curscheduler: item,
+            schedulerName: this.state.threadName,
           });
         });
     }

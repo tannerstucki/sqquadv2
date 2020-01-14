@@ -98,6 +98,9 @@ const styles = StyleSheet.create({
     marginLeft: Dimensions.get('window').width * 0.3,
     alignSelf: 'right',
     position: 'absolute',
+    shadowOffset: { width: 6, height: 6 },
+    shadowColor: 'black',
+    shadowOpacity: 0.25,
   },
   fill: {
     height: Dimensions.get('window').height * 0.8,
@@ -116,5 +119,8 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').height * 0.2,
     alignSelf: 'center',
     margin: 20,
+    shadowOffset: { width: 5, height: 5 },
+    shadowColor: 'black',
+    shadowOpacity: 0.25,
   },
 });

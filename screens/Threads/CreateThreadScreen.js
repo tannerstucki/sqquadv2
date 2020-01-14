@@ -480,6 +480,9 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height * 0.075,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   squadInfo: {
     fontSize: 20,
@@ -496,6 +499,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'absolute',
     marginTop: Dimensions.get('window').height * 0.2,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   user_input: {
     height: 40,
@@ -517,6 +523,9 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.05,
     marginBottom: Dimensions.get('window').height * 0.05,
     alignSelf: 'center',
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   search_fill: {
     marginTop: Dimensions.get('window').height * 0.1,

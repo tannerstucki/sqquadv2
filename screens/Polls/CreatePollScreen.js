@@ -234,6 +234,7 @@ export default class CreatePollScreen extends React.Component {
                       style={styles.question_input}
                       placeholder="Question"
                       placeholderTextColor="#F4F4F4"
+                          selectionColor='white'
                       multiline
                       blurOnSubmit
                       onChangeText={question => this.setState({ question })}
@@ -468,6 +469,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'absolute',
     margin: Dimensions.get('window').height * 0.15,
+    shadowOffset: { width: 12, height: 12 },
+    shadowColor: 'black',
+    shadowOpacity: .15,
   },
   customButton: {
     backgroundColor: 'black',
@@ -479,6 +483,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Dimensions.get('window').height * 0.05,
     marginHorizontal: Dimensions.get('window').width * 0.05,
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   buttonRow: {
     flexDirection: 'row',

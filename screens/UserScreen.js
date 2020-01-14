@@ -139,6 +139,9 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.1,
     marginBottom: Dimensions.get('window').height * 0.1,
     alignSelf: 'center',
+    shadowOffset: { width: 4, height: 4 },
+    shadowColor: 'black',
+    shadowOpacity: .5,
   },
   buttonText: {
     textAlign: 'center',

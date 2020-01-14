@@ -96,5 +96,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { height: -3 },
+    shadowColor: 'black',
+    shadowOpacity: .25,
   },
 });
