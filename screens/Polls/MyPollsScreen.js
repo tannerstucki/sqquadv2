@@ -10,6 +10,8 @@ import {
   StyleSheet,
   FlatList,
   Platform,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,12 +19,40 @@ import { Card } from 'react-native-paper';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class MyPollsScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Polls',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'Polls',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -33,10 +63,14 @@ export default class MyPollsScreen extends React.Component {
       noSquads: false,
       squads: [],
       switchSquadCardShow: false,
+      maxlimit: 30,
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+    
     var user_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid);
@@ -53,10 +87,8 @@ export default class MyPollsScreen extends React.Component {
       .child('polls');
     data_ref.on('value', snapshot => {
       snapshot.forEach(snapshot => {
-        pollsRef
-          .child(snapshot.val().poll_id)
-          .orderByChild('createdAt')
-          .on('value', snapshot => {
+        if (snapshot.key !== 'total_unseen') {
+          pollsRef.child(snapshot.val().poll_id).on('value', snapshot => {
             var item = snapshot.val();
             item.key = snapshot.key;
 
@@ -68,6 +100,7 @@ export default class MyPollsScreen extends React.Component {
             if (userIndex !== -1) {
               item.responded = users[userIndex].responded;
               item.answers = users[userIndex].answers;
+              item.unseen = users[userIndex].unseen;
             } else {
               item.responded = null;
             }
@@ -75,14 +108,15 @@ export default class MyPollsScreen extends React.Component {
             var switchArray = this.state.polls;
             var index = switchArray.findIndex(obj => obj.key === item.key);
             if (index !== -1) {
-              switchArray.splice(index, 1);
-              switchArray.unshift(item);
+              switchArray[index] = item;
+              //switchArray.splice(index, 1);
               this.setState({ polls: switchArray, noPolls: false });
             } else {
-              switchArray.push(item);
+              switchArray.unshift(item);
               this.setState({ polls: switchArray, noPolls: false });
             }
           });
+        }
       });
     });
 
@@ -109,8 +143,8 @@ export default class MyPollsScreen extends React.Component {
             });
         });
       }
+      this.setState({ loading: false });
     });
-    this.setState({ loading: false });
   }
 
   switchShowClosed() {
@@ -150,6 +184,7 @@ export default class MyPollsScreen extends React.Component {
   }
 
   updatePolls(item) {
+    this.setState({ loading: true });
     const rootRef = firebase.database().ref();
     const pollsRef = rootRef.child('polls');
 
@@ -176,17 +211,19 @@ export default class MyPollsScreen extends React.Component {
           if (userIndex !== -1) {
             item.responded = users[userIndex].responded;
             item.answers = users[userIndex].answers;
+            item.unseen = users[userIndex].unseen;
           } else {
             item.responded = null;
           }
 
           var switchArray = this.state.polls;
           var index = switchArray.findIndex(obj => obj.key === item.key);
-          if (index == -1) {
-            switchArray.push(item);
+          if (index === -1) {
+            switchArray.unshift(item);
             this.setState({ polls: switchArray, noPolls: false });
           }
         });
+        this.setState({ loading: false });
       });
     } else {
       this.setState({
@@ -199,10 +236,8 @@ export default class MyPollsScreen extends React.Component {
         .child('polls');
       user_data_ref.on('value', snapshot => {
         snapshot.forEach(snapshot => {
-          pollsRef
-            .child(snapshot.val().poll_id)
-            .orderByChild('createdAt')
-            .on('value', snapshot => {
+          if (snapshot.key !== 'total_unseen') {
+            pollsRef.child(snapshot.val().poll_id).on('value', snapshot => {
               var item = snapshot.val();
               item.key = snapshot.key;
 
@@ -214,6 +249,7 @@ export default class MyPollsScreen extends React.Component {
               if (userIndex !== -1) {
                 item.responded = users[userIndex].responded;
                 item.answers = users[userIndex].answers;
+                item.unseen = users[userIndex].unseen;
               } else {
                 item.responded = null;
               }
@@ -221,11 +257,13 @@ export default class MyPollsScreen extends React.Component {
               var switchArray = this.state.polls;
               var index = switchArray.findIndex(obj => obj.key === item.key);
               if (index === -1) {
-                switchArray.push(item);
+                switchArray.unshift(item);
                 this.setState({ polls: switchArray, noPolls: false });
               }
             });
+          }
         });
+        this.setState({ loading: false });
       });
     }
   }
@@ -240,7 +278,7 @@ export default class MyPollsScreen extends React.Component {
     }
 
     NavigationService.navigate('PollScreen', {
-      curpoll: curpoll,
+      poll_id: curpoll.key,
       pollName: pollName,
     });
   }
@@ -250,6 +288,24 @@ export default class MyPollsScreen extends React.Component {
       squads: this.state.squads,
     });
   }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   render() {
     return (
@@ -261,7 +317,10 @@ export default class MyPollsScreen extends React.Component {
           <View style={styles.fill}>
             {this.state.loading ? (
               <React.Fragment>
-                <Text style={styles.info}>Loading</Text>
+                <Text
+                  style={[styles.info, { color: 'white', marginBottom: 25 }]}>
+                  Loading
+                </Text>
                 <ActivityIndicator size="large" color="white" />
               </React.Fragment>
             ) : (
@@ -322,31 +381,48 @@ export default class MyPollsScreen extends React.Component {
                           {this.state.showClosed === true ||
                           (this.state.showClosed === false &&
                             item.status === 'open') ? (
-                            <TouchableOpacity
-                              onPress={this.openPoll.bind(this, item)}>
-                              <Card style={styles.listCard}>
-                                <Text style={styles.info}>
-                                  {item.question}{' '}
-                                </Text>
-                                {item.responded !== null ? (
-                                  <React.Fragment>
-                                    {item.responded === true ? (
-                                      <Text style={styles.responded}>
-                                        You have completed this poll.
-                                      </Text>
-                                    ) : (
-                                      <Text style={styles.notResponded}>
-                                        You have not completed this poll yet.
-                                      </Text>
-                                    )}
-                                  </React.Fragment>
-                                ) : (
-                                  <Text style={styles.responded}>
-                                    You were not asked to reply to this poll.
-                                  </Text>
-                                )}
-                              </Card>
-                            </TouchableOpacity>
+                            <React.Fragment>
+                              <TouchableOpacity
+                                onPress={this.openPoll.bind(this, item)}>
+                                <Card style={styles.listCard}>
+                                  <View style={{ flexDirection: 'row' }}>
+                                    <Text style={styles.info}>
+                                      {item.question.length >
+                                      this.state.maxlimit
+                                        ? item.question.substring(
+                                            0,
+                                            this.state.maxlimit - 3
+                                          ) + '...'
+                                        : item.question}
+                                    </Text>
+                                    {item.unseen === true ? (
+                                      <View style={styles.circle}>
+                                        <Text style={{ color: 'white' }}>
+                                          New
+                                        </Text>
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                  {item.responded !== null ? (
+                                    <React.Fragment>
+                                      {item.responded === true ? (
+                                        <Text style={styles.responded}>
+                                          You have completed this poll.
+                                        </Text>
+                                      ) : (
+                                        <Text style={styles.notResponded}>
+                                          You have not completed this poll yet.
+                                        </Text>
+                                      )}
+                                    </React.Fragment>
+                                  ) : (
+                                    <Text style={styles.responded}>
+                                      You were not asked to reply to this poll.
+                                    </Text>
+                                  )}
+                                </Card>
+                              </TouchableOpacity>
+                            </React.Fragment>
                           ) : null}
                         </React.Fragment>
                       )}
@@ -412,7 +488,17 @@ export default class MyPollsScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -427,7 +513,7 @@ const styles = StyleSheet.create({
     color: '#5B4FFF',
   },
   squadOption: {
-    fontSize: 20,
+    fontSize: 22,
     textAlign: 'center',
     fontWeight: 'bold',
     color: 'white',
@@ -481,12 +567,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Dimensions.get('window').height * 0.05,
+    marginTop: Dimensions.get('window').height * 0.01,
     marginBottom: Dimensions.get('window').height * -0.01,
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',
@@ -507,7 +593,7 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.025,
     shadowOffset: { width: 7, height: 7 },
     shadowColor: 'black',
-    shadowOpacity: .2,
+    shadowOpacity: 0.2,
   },
   resultsCard: {
     width: Dimensions.get('window').width * 0.75,
@@ -519,7 +605,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   line: {
     backgroundColor: '#5B4FFF',
@@ -528,5 +614,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 10,
     width: Dimensions.get('window').width * 0.6,
+  },
+  circle: {
+    width: 50,
+    height: 25,
+    borderRadius: 100 / 2,
+    backgroundColor: '#D616CF',
+    justifyContent: 'center',
+    textAlign: 'center',
+    marginTop: Dimensions.get('window').height * 0.015,
+    marginRight: Dimensions.get('window').width * 0.3,
+    alignSelf: 'right',
+    alignContent: 'center',
+    alignItems: 'center',
   },
 });

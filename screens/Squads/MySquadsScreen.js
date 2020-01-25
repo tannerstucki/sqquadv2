@@ -11,26 +11,61 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Easing,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import BottomMenu from '../../components/BottomMenu';
 import { createStackNavigator } from 'react-navigation';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class MySquadsScreen extends React.Component {
-  static navigationOptions = {
-    title: 'My Squads',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'My Squads',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       data: [],
       loading: true,
       noSquads: true,
+      maxlimit: 30,
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+    
     const rootRef = firebase.database().ref();
     const squadsRef = rootRef.child('squads');
     var squads = [];
@@ -62,6 +97,24 @@ export default class MySquadsScreen extends React.Component {
   openCreateSquad() {
     NavigationService.navigate('CreateSquadScreen');
   }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   render() {
     return (
@@ -97,7 +150,12 @@ export default class MySquadsScreen extends React.Component {
                     <React.Fragment>
                       <TouchableOpacity
                         onPress={this.openSquad.bind(this, item)}>
-                        <Text style={styles.info}>{item.name} </Text>
+                        <Text style={styles.info}>
+                          {item.name.length > this.state.maxlimit
+                            ? item.name.substring(0, this.state.maxlimit - 3) +
+                              '...'
+                            : item.name}
+                        </Text>
                       </TouchableOpacity>
                       <View style={styles.line} />
                     </React.Fragment>
@@ -112,6 +170,17 @@ export default class MySquadsScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -119,7 +188,7 @@ export default class MySquadsScreen extends React.Component {
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height,
+    height: Dimensions.get('window').height * .8,
   },
   loading: {
     alignContent: 'center',
@@ -161,11 +230,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Dimensions.get('window').height * 0.1,
-    marginTop: Dimensions.get('window').height * 0.1,
+    marginBottom: Dimensions.get('window').height * 0,
+    marginTop: Dimensions.get('window').height * 0.01,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',

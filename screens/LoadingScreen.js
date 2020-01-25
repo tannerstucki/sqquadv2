@@ -64,5 +64,8 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').height * 0.2,
     alignSelf: 'center',
     margin: 20,
+    shadowOffset: { width: 5, height: 5 },
+    shadowColor: 'black',
+    shadowOpacity: 0.25,
   },
 });

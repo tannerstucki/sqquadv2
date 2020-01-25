@@ -10,6 +10,9 @@ import {
   StyleSheet,
   TextInput,
   FlatList,
+  ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,12 +21,40 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreateTaskScreen extends React.Component {
-  static navigationOptions = {
-    title: 'New Task',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Task',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -35,6 +66,7 @@ export default class CreateTaskScreen extends React.Component {
       selectedSquad: { name: 'Personal Task (No Squad Selected)' },
       switchCardShow: false,
       assigneeCardShow: false,
+      showDrawer: false,
       curassignee: '',
       users: [],
       checked: [],
@@ -42,6 +74,8 @@ export default class CreateTaskScreen extends React.Component {
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
     const squads = params.squads;
 
@@ -115,6 +149,24 @@ export default class CreateTaskScreen extends React.Component {
       });
     }
   }
+  
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   addAssignee() {
     var assignees = [];
@@ -128,6 +180,7 @@ export default class CreateTaskScreen extends React.Component {
         user_id: curassignee[1].user_id,
         user_name: curassignee[1].name,
         status: 'To Do',
+        unseen: true,
       });
     }
     this.setState({
@@ -156,6 +209,7 @@ export default class CreateTaskScreen extends React.Component {
         user_id: curassignee[1].user_id,
         user_name: curassignee[1].name,
         status: 'To Do',
+        unseen: true,
       });
     }
     this.setState({
@@ -179,6 +233,7 @@ export default class CreateTaskScreen extends React.Component {
         user_name:
           this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
         status: 'To Do',
+        unseen: true,
       });
     } else {
       assignees = this.state.assignees;
@@ -201,13 +256,34 @@ export default class CreateTaskScreen extends React.Component {
         var task_id = snapshot.key;
 
         for (let i = 0; i < assignees.length; i++) {
+          //Add task to user list
           firebase
             .database()
-            .ref('users/' + assignees[i].user_id)
-            .child('tasks')
-            .push({
+            .ref('users/' + assignees[i].user_id + '/tasks')
+            .child(task_id)
+            .set({
               task_id: task_id,
-            });
+            })
+            .then(
+              //Increase unseen tasks
+              firebase
+                .database()
+                .ref('users/' + assignees[i].user_id + '/tasks')
+                .once('value', snapshot => {
+                  var total_unseen = 1;
+                  if (
+                    snapshot.val().total_unseen !== undefined &&
+                    snapshot.val().total_unseen !== null
+                  ) {
+                    total_unseen = snapshot.val().total_unseen + 1;
+                  }
+                  firebase
+                    .database()
+                    .ref('users/' + assignees[i].user_id + '/tasks')
+                    .child('total_unseen')
+                    .set(total_unseen);
+                })
+            );
         }
 
         if (
@@ -269,10 +345,9 @@ export default class CreateTaskScreen extends React.Component {
             }
           }
         }*/
+        NavigationService.navigate('MyTasksScreen');
+        alert('Your task has been created!');
       });
-
-    NavigationService.navigate('MyTasksScreen');
-    alert('Your task has been created!');
   }
 
   render() {
@@ -309,146 +384,110 @@ export default class CreateTaskScreen extends React.Component {
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 1 }}>
           <View style={styles.fill}>
-            {this.state.loading ? (
-              <React.Fragment>
-                <Text style={styles.info}>Loading</Text>
-                <ActivityIndicator size="large" color="white" />
-              </React.Fragment>
-            ) : (
-              <React.Fragment>
-                {this.state.switchCardShow === false &&
-                this.state.assigneeCardShow === false ? (
-                  <React.Fragment>
-                    <TextInput
-                      style={styles.title_input}
-                      placeholder="Task Title"
-                      placeholderTextColor="#F4F4F4"
-                      selectionColor="white"
-                      multiline
-                      blurOnSubmit
-                      onChangeText={title => this.setState({ title })}
-                      value={this.state.title}
-                    />
-                    <TextInput
-                      style={styles.title_input}
-                      placeholder="Description"
-                      placeholderTextColor="#F4F4F4"
-                      selectionColor="white"
-                      multiline
-                      blurOnSubmit
-                      onChangeText={description =>
-                        this.setState({ description })
-                      }
-                      value={this.state.description}
-                    />
-                    <TouchableOpacity
-                      onPress={this.switchSelectedSquad.bind(this)}>
-                      <Text style={styles.info}>
-                        {this.state.selectedSquad.name}
+            <ScrollView>
+              {this.state.loading ? (
+                <React.Fragment>
+                  <Text style={styles.info}>Loading</Text>
+                  <ActivityIndicator size="large" color="white" />
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  {this.state.switchCardShow === false &&
+                  this.state.assigneeCardShow === false ? (
+                    <React.Fragment>
+                      <TextInput
+                        style={styles.title_input}
+                        placeholder="Task Title"
+                        placeholderTextColor="#F4F4F4"
+                        selectionColor="white"
+                        multiline
+                        blurOnSubmit
+                        onChangeText={title => this.setState({ title })}
+                        value={this.state.title}
+                      />
+                      <TextInput
+                        style={styles.title_input}
+                        placeholder="Description"
+                        placeholderTextColor="#F4F4F4"
+                        selectionColor="white"
+                        multiline
+                        blurOnSubmit
+                        onChangeText={description =>
+                          this.setState({ description })
+                        }
+                        value={this.state.description}
+                      />
+                      <TouchableOpacity
+                        onPress={this.switchSelectedSquad.bind(this)}>
+                        <Text style={styles.info}>
+                          {this.state.selectedSquad.name}
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={styles.line} />
+                      <Text style={[styles.info, { fontWeight: 'bold' }]}>
+                        Assignees:
                       </Text>
-                    </TouchableOpacity>
-                    <View style={styles.line} />
-                    <Text style={[styles.info, { fontWeight: 'bold' }]}>
-                      Assignees:
-                    </Text>
-                    {this.state.assignees.length === 0 &&
-                    this.state.selectedSquad.name !==
-                      'Personal Task (No Squad Selected)' ? (
-                      <Text style={styles.noSquads}>
-                        Add assignees with the button below!
-                      </Text>
-                    ) : null}
-                    {this.state.assignees.length === 0 &&
-                    this.state.selectedSquad.name ===
-                      'Personal Task (No Squad Selected)' ? (
-                      <Text style={styles.noSquads}>
-                        This will be saved as a personal task.
-                      </Text>
-                    ) : null}
-                    <FlatList
-                      style={{ padding: 10 }}
-                      data={this.state.assignees}
-                      extraData={this.state}
-                      keyExtractor={(item, index) => index.toString()}
-                      renderItem={({ item }) => (
-                        <React.Fragment>
-                          <View style={{ flexDirection: 'row' }}>
-                            <Text style={[styles.info]}>{item.user_name}</Text>
+                      {this.state.assignees.length === 0 &&
+                      this.state.selectedSquad.name !==
+                        'Personal Task (No Squad Selected)' ? (
+                        <Text style={styles.noSquads}>
+                          Add assignees with the button below!
+                        </Text>
+                      ) : null}
+                      {this.state.assignees.length === 0 &&
+                      this.state.selectedSquad.name ===
+                        'Personal Task (No Squad Selected)' ? (
+                        <Text style={styles.noSquads}>
+                          This will be saved as a personal task.
+                        </Text>
+                      ) : null}
+                      <FlatList
+                        style={{ padding: 10 }}
+                        data={this.state.assignees}
+                        extraData={this.state}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                          <React.Fragment>
+                            <View style={{ flexDirection: 'row' }}>
+                              <Text style={[styles.info]}>
+                                {item.user_name}
+                              </Text>
+                            </View>
+                            <View style={styles.line} />
+                          </React.Fragment>
+                        )}
+                      />
+                      <View style={styles.buttonRow}>
+                        <TouchableOpacity
+                          onPress={this.onCreatePress.bind(this)}
+                          disabled={isEnabled}>
+                          <View style={styles.customButton}>
+                            <Text
+                              style={[
+                                styles.buttonText,
+                                { color: text_color },
+                              ]}>
+                              Create Task
+                            </Text>
                           </View>
-                          <View style={styles.line} />
-                        </React.Fragment>
-                      )}
-                    />
-                    <View style={styles.buttonRow}>
-                      <TouchableOpacity
-                        onPress={this.onCreatePress.bind(this)}
-                        disabled={isEnabled}>
-                        <View style={styles.customButton}>
-                          <Text
-                            style={[styles.buttonText, { color: text_color }]}>
-                            Create Task
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={this.toggleAssigneeCard.bind(this)}
-                        disabled={isAssigneeEnabled}>
-                        <View style={styles.customButton}>
-                          <Text
-                            style={[
-                              styles.buttonText,
-                              { color: assignee_text_color },
-                            ]}>
-                            Add Assignees
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  </React.Fragment>
-                ) : null}
-                {this.state.switchCardShow === true ? (
-                  <Card
-                    style={[
-                      styles.resultsCard,
-                      {
-                        marginLeft: Dimensions.get('window').width * 0,
-                        marginTop: Dimensions.get('window').height * 0.125,
-                      },
-                    ]}>
-                    <TouchableOpacity
-                      onPress={this.chooseSquad.bind(this, 'Personal Task')}>
-                      <Text
-                        style={[
-                          styles.card_info,
-                          {
-                            fontSize: 20,
-                            textAlign: 'center',
-                            marginTop: Dimensions.get('window').height * 0.02,
-                          },
-                        ]}>
-                        Personal Task
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={styles.card_line} />
-                    <FlatList
-                      style={{ padding: 10 }}
-                      data={this.state.squads}
-                      extraData={this.state}
-                      keyExtractor={(item, index) => index.toString()}
-                      renderItem={({ item }) => (
-                        <React.Fragment>
-                          <TouchableOpacity
-                            onPress={this.chooseSquad.bind(this, item)}>
-                            <Text style={styles.card_info}>{item.name}</Text>
-                          </TouchableOpacity>
-                          <View style={styles.card_line} />
-                        </React.Fragment>
-                      )}
-                    />
-                  </Card>
-                ) : null}
-                {this.state.assigneeCardShow === true ? (
-                  <React.Fragment>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={this.toggleAssigneeCard.bind(this)}
+                          disabled={isAssigneeEnabled}>
+                          <View style={styles.customButton}>
+                            <Text
+                              style={[
+                                styles.buttonText,
+                                { color: assignee_text_color },
+                              ]}>
+                              Add Assignees
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    </React.Fragment>
+                  ) : null}
+                  {this.state.switchCardShow === true ? (
                     <Card
                       style={[
                         styles.resultsCard,
@@ -457,106 +496,159 @@ export default class CreateTaskScreen extends React.Component {
                           marginTop: Dimensions.get('window').height * 0.125,
                         },
                       ]}>
-                      <TouchableOpacity onPress={this.assignToAll.bind(this)}>
+                      <TouchableOpacity
+                        onPress={this.chooseSquad.bind(this, 'Personal Task')}>
                         <Text
                           style={[
                             styles.card_info,
                             {
                               fontSize: 20,
                               textAlign: 'center',
-                              marginTop:
-                                Dimensions.get('window').height * 0.025,
+                              marginTop: Dimensions.get('window').height * 0.02,
                             },
                           ]}>
-                          Assign to all members
+                          Personal Task
                         </Text>
-                        <View style={styles.card_line} />
                       </TouchableOpacity>
+                      <View style={styles.card_line} />
                       <FlatList
                         style={{ padding: 10 }}
+                        data={this.state.squads}
                         extraData={this.state}
-                        data={this.state.users}
                         keyExtractor={(item, index) => index.toString()}
                         renderItem={({ item }) => (
                           <React.Fragment>
                             <TouchableOpacity
-                              onPress={this.radioClick.bind(this, item)}>
-                              <View
-                                style={{
-                                  flexDirection: 'row',
-                                }}>
-                                <RadioButton
-                                  onPress={this.radioClick.bind(this, item)}
-                                  color="#5B4FFF"
-                                  value={item[0]}
-                                  status={
-                                    this.state.checked.findIndex(
-                                      element => element === item[0]
-                                    ) !== -1
-                                      ? 'checked'
-                                      : 'unchecked'
-                                  }
-                                />
-                                <Text style={styles.card_info}>
-                                  {item[1].name}
-                                </Text>
-                              </View>
+                              onPress={this.chooseSquad.bind(this, item)}>
+                              <Text style={styles.card_info}>{item.name}</Text>
                             </TouchableOpacity>
                             <View style={styles.card_line} />
                           </React.Fragment>
                         )}
                       />
-                      <View style={styles.buttonRow}>
-                        <View
-                          style={{
-                            width: Dimensions.get('window').width * 0.2,
-                            textAlign: 'center',
-                          }}>
-                          <TouchableOpacity
-                            onPress={this.addAssignee.bind(this)}
-                            disabled={isOkEnabled}>
-                            <Text
-                              style={[
-                                styles.info,
-                                {
-                                  color: ok_text_color,
-                                  paddingLeft: 0,
-                                  fontWeight: 'bold',
-                                },
-                              ]}>
-                              Ok
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                        <View
-                          style={{
-                            width: Dimensions.get('window').width * 0.2,
-                            textAlign: 'center',
-                          }}>
-                          <TouchableOpacity
-                            onPress={this.toggleAssigneeCard.bind(this)}>
-                            <Text
-                              style={[
-                                styles.info,
-                                {
-                                  color: '#5B4FFF',
-                                  paddingLeft: 0,
-                                  fontWeight: 'bold',
-                                },
-                              ]}>
-                              Cancel
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
                     </Card>
-                  </React.Fragment>
-                ) : null}
-              </React.Fragment>
-            )}
+                  ) : null}
+                  {this.state.assigneeCardShow === true ? (
+                    <React.Fragment>
+                      <Card
+                        style={[
+                          styles.resultsCard,
+                          {
+                            marginLeft: Dimensions.get('window').width * 0,
+                            marginTop: Dimensions.get('window').height * 0.125,
+                          },
+                        ]}>
+                        <TouchableOpacity onPress={this.assignToAll.bind(this)}>
+                          <Text
+                            style={[
+                              styles.card_info,
+                              {
+                                fontSize: 20,
+                                textAlign: 'center',
+                                marginTop:
+                                  Dimensions.get('window').height * 0.025,
+                              },
+                            ]}>
+                            Assign to all members
+                          </Text>
+                          <View style={styles.card_line} />
+                        </TouchableOpacity>
+                        <FlatList
+                          style={{ padding: 10 }}
+                          extraData={this.state}
+                          data={this.state.users}
+                          keyExtractor={(item, index) => index.toString()}
+                          renderItem={({ item }) => (
+                            <React.Fragment>
+                              <TouchableOpacity
+                                onPress={this.radioClick.bind(this, item)}>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                  }}>
+                                  <RadioButton
+                                    onPress={this.radioClick.bind(this, item)}
+                                    color="#5B4FFF"
+                                    value={item[0]}
+                                    status={
+                                      this.state.checked.findIndex(
+                                        element => element === item[0]
+                                      ) !== -1
+                                        ? 'checked'
+                                        : 'unchecked'
+                                    }
+                                  />
+                                  <Text style={styles.card_info}>
+                                    {item[1].name}
+                                  </Text>
+                                </View>
+                              </TouchableOpacity>
+                              <View style={styles.card_line} />
+                            </React.Fragment>
+                          )}
+                        />
+                        <View style={styles.buttonRow}>
+                          <View
+                            style={{
+                              width: Dimensions.get('window').width * 0.2,
+                              textAlign: 'center',
+                            }}>
+                            <TouchableOpacity
+                              onPress={this.addAssignee.bind(this)}
+                              disabled={isOkEnabled}>
+                              <Text
+                                style={[
+                                  styles.info,
+                                  {
+                                    color: ok_text_color,
+                                    paddingLeft: 0,
+                                    fontWeight: 'bold',
+                                  },
+                                ]}>
+                                Ok
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View
+                            style={{
+                              width: Dimensions.get('window').width * 0.2,
+                              textAlign: 'center',
+                            }}>
+                            <TouchableOpacity
+                              onPress={this.toggleAssigneeCard.bind(this)}>
+                              <Text
+                                style={[
+                                  styles.info,
+                                  {
+                                    color: '#5B4FFF',
+                                    paddingLeft: 0,
+                                    fontWeight: 'bold',
+                                  },
+                                ]}>
+                                Cancel
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </Card>
+                    </React.Fragment>
+                  ) : null}
+                </React.Fragment>
+              )}
+            </ScrollView>
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -620,7 +712,7 @@ const styles = StyleSheet.create({
     margin: Dimensions.get('window').height * 0.15,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   customButton: {
     backgroundColor: 'black',
@@ -634,7 +726,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonRow: {
     flexDirection: 'row',

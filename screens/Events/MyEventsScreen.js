@@ -11,6 +11,8 @@ import {
   FlatList,
   Platform,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import CalendarStrip from 'react-native-calendar-strip';
@@ -21,12 +23,40 @@ import { Card } from 'react-native-paper';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class MyEventsScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Schedule',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'Schedule',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       squads: [],
       events: [],
@@ -36,18 +66,35 @@ export default class MyEventsScreen extends React.Component {
       calendarShow: false,
       firstSelect: true,
       switchSquadCardShow: false,
+      newCardShow: false,
       squadOption: 'My Schedule',
       calendarDots: {},
       calendarStripDots: [],
+      maxlimit: 30,
+      timeOffset: 0,
+      newEventsDatePlaceholder: '',
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+    
     var user_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid);
     user_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val() });
+      var total_unseen = 0;
+      if (
+        snapshot.val().events !== undefined &&
+        snapshot.val().events !== null
+      ) {
+        total_unseen = snapshot.val().events.total_unseen;
+      }
+      this.setState({
+        curuser: snapshot.val(),
+        total_unseen: total_unseen,
+      });
     });
 
     const rootRef = firebase.database().ref();
@@ -76,34 +123,44 @@ export default class MyEventsScreen extends React.Component {
       }
     });
 
-    const eventsRef = rootRef.child('events');
+    var date = new Date();
+    var timeOffset = date.getTimezoneOffset();
 
+    const eventsRef = rootRef.child('events');
     var data_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid)
-      .child('events');
+      .child('events')
+      .orderByChild('startAt');
     data_ref.on('value', snapshot => {
       snapshot.forEach(snapshot => {
-        eventsRef
-          .child(snapshot.val().event_id)
-          .orderByChild('startAt')
-          .on('value', snapshot => {
+        if (snapshot.key !== 'total_unseen') {
+          eventsRef.child(snapshot.val().event_id).on('value', snapshot => {
             var item = snapshot.val();
             item.key = snapshot.key;
+
+            //get the unseen status of the current user
+            var users = item.users;
+            var userIndex = users.findIndex(
+              obj => obj.user_id === firebase.auth().currentUser.uid
+            );
+            if (userIndex !== -1) {
+              item.unseen = users[userIndex].unseen;
+            } else {
+              item.unseen = null;
+            }
+
             var switchArray = this.state.events;
             var index = switchArray.findIndex(obj => obj.key === item.key);
             if (index !== -1) {
-              switchArray.splice(index, 1);
-              switchArray.unshift(item);
+              switchArray[index] = item;
               this.setState({ events: switchArray, noEvents: false });
             } else {
-              switchArray.push(item);
+              switchArray.unshift(item);
 
-              var objectTitle = Moment(
-                new Date(parseInt(item.startAt)).toLocaleString('en-US', {
-                  timeZone: 'America/Los_Angeles',
-                })
-              ).format('YYYY-MM-DD');
+              var objectTitle = Moment(item.startAt + timeOffset).format(
+                'YYYY-MM-DD'
+              );
 
               var calendarDots = this.state.calendarDots;
               calendarDots[objectTitle] = {
@@ -118,6 +175,10 @@ export default class MyEventsScreen extends React.Component {
                 dots: [{ color: '#5B4FFF', selectedDotColor: 'white' }],
               });
 
+              switchArray.sort(function(event1, event2) {
+                return event1.startAt - event2.startAt;
+              });
+
               this.setState({
                 calendarDots: calendarDots,
                 calendarStripDots: calendarStripDots,
@@ -126,6 +187,11 @@ export default class MyEventsScreen extends React.Component {
               });
             }
           });
+        }
+      });
+
+      this.setState({
+        loading: false,
       });
     });
 
@@ -141,7 +207,6 @@ export default class MyEventsScreen extends React.Component {
     var fullDate = today.getFullYear().toString() + '-' + month + '-' + day;
 
     this.setState({
-      loading: false,
       dateSelected: {
         [fullDate]: {
           selected: true,
@@ -177,7 +242,41 @@ export default class MyEventsScreen extends React.Component {
     }
   }
 
+  toggleNewCardShow() {
+    if (this.state.newCardShow === true) {
+      this.setState({
+        newCardShow: false,
+        dateSelected: this.state.newEventsDatePlaceholder,
+      });
+    } else {
+      this.setState({
+        newCardShow: true,
+        newEventsDatePlaceholder: this.state.dateSelected,
+        dateSelected: '',
+      });
+    }
+  }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
+
   updateEvents(item) {
+    this.setState({ loading: true });
     const rootRef = firebase.database().ref();
     const eventsRef = rootRef.child('events');
 
@@ -195,16 +294,29 @@ export default class MyEventsScreen extends React.Component {
         snapshot.forEach(snapshot => {
           var item = snapshot.val();
           item.key = snapshot.key;
+
+          //get the unseen status of the current user
+          var users = item.users;
+          var userIndex = users.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          if (userIndex !== -1) {
+            item.unseen = users[userIndex].unseen;
+          } else {
+            item.unseen = null;
+          }
+
           var switchArray = this.state.events;
           var index = switchArray.findIndex(obj => obj.key === item.key);
           if (index === -1) {
-            switchArray.push(item);
-
+            switchArray.unshift(item);
             var objectTitle = Moment(
-              new Date(parseInt(item.startAt)).toLocaleString('en-US', {
-                timeZone: 'America/Los_Angeles',
-              })
+              parseInt(item.startAt + this.state.timeOffset)
             ).format('YYYY-MM-DD');
+
+            switchArray.sort(function(event1, event2) {
+              return event1.startAt - event2.startAt;
+            });
 
             var calendarDots = this.state.calendarDots;
             calendarDots[objectTitle] = {
@@ -227,6 +339,7 @@ export default class MyEventsScreen extends React.Component {
             });
           }
         });
+        this.setState({ loading: false });
       });
     } else {
       this.setState({
@@ -236,49 +349,66 @@ export default class MyEventsScreen extends React.Component {
       var user_data_ref = firebase
         .database()
         .ref('users/' + firebase.auth().currentUser.uid)
-        .child('events');
+        .child('events')
+        .orderByChild('startAt');
       user_data_ref.on('value', snapshot => {
         snapshot.forEach(snapshot => {
-          eventsRef
-            .child(snapshot.val().event_id)
-            .orderByChild('startAt')
-            .on('value', snapshot => {
-              var item = snapshot.val();
-              item.key = snapshot.key;
-              var switchArray = this.state.events;
-              var index = switchArray.findIndex(obj => obj.key === item.key);
-              if (index === -1) {
-                switchArray.push(item);
+          if (snapshot.key !== 'total_unseen') {
+            eventsRef
+              .child(snapshot.val().event_id)
+              .orderByChild('startAt')
+              .on('value', snapshot => {
+                var item = snapshot.val();
+                item.key = snapshot.key;
 
-                var objectTitle = Moment(
-                  new Date(parseInt(item.startAt)).toLocaleString('en-US', {
-                    timeZone: 'America/Los_Angeles',
-                  })
-                ).format('YYYY-MM-DD');
+                //get the unseen status of the current user
+                var users = item.users;
+                var userIndex = users.findIndex(
+                  obj => obj.user_id === firebase.auth().currentUser.uid
+                );
+                if (userIndex !== -1) {
+                  item.unseen = users[userIndex].unseen;
+                } else {
+                  item.unseen = null;
+                }
 
-                var calendarDots = this.state.calendarDots;
-                calendarDots[objectTitle] = {
-                  /*marked: true,
+                var switchArray = this.state.events;
+                var index = switchArray.findIndex(obj => obj.key === item.key);
+                if (index === -1) {
+                  switchArray.unshift(item);
+                  var objectTitle = Moment(
+                    item.startAt + this.state.timeOffset
+                  ).format('YYYY-MM-DD');
+
+                  switchArray.sort(function(event1, event2) {
+                    return event1.startAt - event2.startAt;
+                  });
+
+                  var calendarDots = this.state.calendarDots;
+                  calendarDots[objectTitle] = {
+                    /*marked: true,
                   dotColor: '#5B4FFF',*/
-                  selected: true,
-                  selectedColor: '#D616CF',
-                };
+                    selected: true,
+                    selectedColor: '#D616CF',
+                  };
 
-                var calendarStripDots = this.state.calendarStripDots;
-                calendarStripDots.push({
-                  date: objectTitle,
-                  dots: [{ color: '#5B4FFF', selectedDotColor: 'white' }],
-                });
+                  var calendarStripDots = this.state.calendarStripDots;
+                  calendarStripDots.push({
+                    date: objectTitle,
+                    dots: [{ color: '#5B4FFF', selectedDotColor: 'white' }],
+                  });
 
-                this.setState({
-                  calendarDots: calendarDots,
-                  calendarStripDots: calendarStripDots,
-                  events: switchArray,
-                  noEvents: false,
-                });
-              }
-            });
+                  this.setState({
+                    calendarDots: calendarDots,
+                    calendarStripDots: calendarStripDots,
+                    events: switchArray,
+                    noEvents: false,
+                  });
+                }
+              });
+          }
         });
+        this.setState({ loading: false });
       });
     }
   }
@@ -317,6 +447,13 @@ export default class MyEventsScreen extends React.Component {
   }
 
   openEvent(curevent) {
+    if (
+      curevent.unseen &&
+      this.state.total_unseen === 1 &&
+      this.state.newCardShow
+    ) {
+      this.toggleNewCardShow();
+    }
     var eventName;
     if (curevent.squad_id !== 'null') {
       for (let i = 0; i < this.state.squads.length; i++) {
@@ -330,7 +467,7 @@ export default class MyEventsScreen extends React.Component {
     }
 
     NavigationService.navigate('EventScreen', {
-      curevent: curevent,
+      event_id: curevent.key,
       eventName: eventName,
     });
   }
@@ -355,21 +492,74 @@ export default class MyEventsScreen extends React.Component {
           <View style={styles.fill}>
             {this.state.loading ? (
               <React.Fragment>
-                <Text style={styles.info}>Loading</Text>
+                <Text
+                  style={[styles.info, { color: 'white', marginBottom: 25 }]}>
+                  Loading
+                </Text>
                 <ActivityIndicator size="large" color="white" />
               </React.Fragment>
             ) : (
               <React.Fragment>
                 {!this.state.switchSquadCardShow ? (
                   <React.Fragment>
-                    <TouchableOpacity
-                      onPress={this.switchSquadOption.bind(this)}>
-                      <View>
-                        <Text style={styles.squadOption}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignContent: 'center',
+                        alignSelf: 'center',
+                      }}>
+                      <TouchableOpacity
+                        onPress={this.switchSquadOption.bind(this)}
+                        disabled={this.state.newCardShow}>
+                        <Text style={[styles.squadOption]}>
                           {this.state.squadOption}
                         </Text>
-                      </View>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                      {this.state.total_unseen > 0 &&
+                      this.state.squadOption === 'My Schedule' &&
+                      !this.state.calendarShow ? (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.toggleNewCardShow.bind(this)}>
+                            <View
+                              style={[
+                                styles.circle,
+                                this.state.newCardShow
+                                  ? {
+                                      width: 60,
+                                      marginLeft: 20,
+                                      marginTop:
+                                        Dimensions.get('window').height * 0.02,
+                                      marginRight: 0,
+                                      position: 'absolute',
+                                      backgroundColor: 'white',
+                                    }
+                                  : {
+                                      width: 60,
+                                      marginLeft: 20,
+                                      marginTop:
+                                        Dimensions.get('window').height * 0.02,
+                                      marginRight: 0,
+                                      position: 'absolute',
+                                    },
+                              ]}>
+                              {this.state.total_unseen < 100 ? (
+                                <Text
+                                  style={
+                                    this.state.newCardShow
+                                      ? { color: '#D616CF' }
+                                      : { color: 'white' }
+                                  }>
+                                  {this.state.total_unseen} New
+                                </Text>
+                              ) : (
+                                <Text style={{ color: 'white' }}>99 New</Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        </React.Fragment>
+                      ) : null}
+                    </View>
                     {this.state.calendarShow === true ? (
                       <React.Fragment>
                         <Calendar
@@ -413,7 +603,8 @@ export default class MyEventsScreen extends React.Component {
                     ) : (
                       <React.Fragment>
                         <TouchableOpacity
-                          onPress={this.toggleCalendar.bind(this)}>
+                          onPress={this.toggleCalendar.bind(this)}
+                          disabled={this.state.newCardShow}>
                           <CalendarStrip
                             selectedDate={
                               this.state.firstSelect === true
@@ -424,17 +615,19 @@ export default class MyEventsScreen extends React.Component {
                                   )
                             }
                             onDateSelected={day => {
-                              this.setState({
-                                dateSelected: {
-                                  [day.format().substring(0, 10)]: {
-                                    selected: true,
-                                    selectedColor: '#D616CF',
-                                    selectedDotColor: 'white',
+                              if (!this.state.newCardShow) {
+                                this.setState({
+                                  dateSelected: {
+                                    [day.format().substring(0, 10)]: {
+                                      selected: true,
+                                      selectedColor: '#D616CF',
+                                      selectedDotColor: 'white',
+                                    },
                                   },
-                                },
-                                calendarShow: false,
-                                firstSelect: false,
-                              });
+                                  calendarShow: false,
+                                  firstSelect: false,
+                                });
+                              }
                             }}
                             markedDates={this.state.calendarStripDots}
                             iconLeft={require('../../assets/icons/left-arrow.png')}
@@ -525,95 +718,76 @@ export default class MyEventsScreen extends React.Component {
                           renderItem={({ item }) => (
                             <React.Fragment>
                               {Moment(
-                                new Date(parseInt(item.startAt)).toLocaleString(
-                                  'en-US',
-                                  {
-                                    timeZone: 'America/Los_Angeles',
-                                  }
-                                )
+                                item.startAt + this.state.timeOffset
                               ).format('YYYY-MM-DD') ===
-                              Object.keys(this.state.dateSelected)[0] ? (
+                                Object.keys(this.state.dateSelected)[0] ||
+                              (this.state.newCardShow && item.unseen) ? (
                                 <TouchableOpacity
                                   onPress={this.openEvent.bind(this, item)}>
                                   <Card style={styles.listCard}>
-                                    <Text style={styles.info}>
-                                      {item.title}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row' }}>
+                                      <Text style={styles.info}>
+                                        {item.title.length > this.state.maxlimit
+                                          ? item.title.substring(
+                                              0,
+                                              this.state.maxlimit - 3
+                                            ) + '...'
+                                          : item.title}
+                                      </Text>
+                                      {item.unseen === true &&
+                                      JSON.stringify(item.users).includes(
+                                        firebase.auth().currentUser.uid
+                                      ) ? (
+                                        <View style={styles.circle}>
+                                          <Text style={{ color: 'white' }}>
+                                            New
+                                          </Text>
+                                        </View>
+                                      ) : null}
+                                    </View>
                                     <View style={{ flexDirection: 'row' }}>
                                       {Moment(
-                                        new Date(
-                                          parseInt(item.startAt)
-                                        ).toLocaleString('en-US', {
-                                          timeZone: 'America/Los_Angeles',
-                                        })
+                                        item.startAt + this.state.timeOffset
                                       )
                                         .format('hh:mm A')
                                         .substring(0, 1) === '0' ? (
                                         <Text style={styles.startAt}>
                                           {Moment(
-                                            new Date(
-                                              parseInt(item.startAt)
-                                            ).toLocaleString('en-US', {
-                                              timeZone: 'America/Los_Angeles',
-                                            })
+                                            item.startAt + this.state.timeOffset
                                           ).format('h:mm A')}{' '}
                                           to
                                         </Text>
                                       ) : (
                                         <Text style={styles.startAt}>
                                           {Moment(
-                                            new Date(
-                                              parseInt(item.startAt)
-                                            ).toLocaleString('en-US', {
-                                              timeZone: 'America/Los_Angeles',
-                                            })
+                                            item.startAt + this.state.timeOffset
                                           ).format('hh:mm A')}{' '}
                                           to
                                         </Text>
                                       )}
                                       {Moment(
-                                        new Date(
-                                          parseInt(item.startAt)
-                                        ).toLocaleString('en-US', {
-                                          timeZone: 'America/Los_Angeles',
-                                        })
+                                        item.startAt + this.state.timeOffset
                                       ).format('yyyy-mm-dd') ===
                                       Moment(
-                                        new Date(
-                                          parseInt(item.endAt)
-                                        ).toLocaleString('en-US', {
-                                          timeZone: 'America/Los_Angeles',
-                                        })
+                                        item.endAt + this.state.timeOffset
                                       ).format('yyyy-mm-dd') ? (
                                         <React.Fragment>
                                           {Moment(
-                                            new Date(
-                                              parseInt(item.endAt)
-                                            ).toLocaleString('en-US', {
-                                              timeZone: 'America/Los_Angeles',
-                                            })
+                                            item.endAt + this.state.timeOffset
                                           )
                                             .format('hh:mm A')
                                             .substring(0, 1) === '0' ? (
                                             <Text style={styles.endAt}>
                                               {Moment(
-                                                new Date(
-                                                  parseInt(item.endAt)
-                                                ).toLocaleString('en-US', {
-                                                  timeZone:
-                                                    'America/Los_Angeles',
-                                                })
+                                                item.endAt +
+                                                  this.state.timeOffset
                                               ).format('h:mm A')}
                                             </Text>
                                           ) : (
                                             <Text style={styles.endAt}>
                                               {Moment(
-                                                new Date(
-                                                  parseInt(item.endAt)
-                                                ).toLocaleString('en-US', {
-                                                  timeZone:
-                                                    'America/Los_Angeles',
-                                                })
+                                                item.endAt +
+                                                  this.state.timeOffset
                                               ).format('hh:mm A')}
                                             </Text>
                                           )}
@@ -621,33 +795,21 @@ export default class MyEventsScreen extends React.Component {
                                       ) : (
                                         <React.Fragment>
                                           {Moment(
-                                            new Date(
-                                              parseInt(item.endAt)
-                                            ).toLocaleString('en-US', {
-                                              timeZone: 'America/Los_Angeles',
-                                            })
+                                            item.endAt + this.state.timeOffset
                                           )
                                             .format('hh:mm A')
                                             .substring(0, 1) === '0' ? (
                                             <Text style={styles.endAt}>
                                               {Moment(
-                                                new Date(
-                                                  parseInt(item.endAt)
-                                                ).toLocaleString('en-US', {
-                                                  timeZone:
-                                                    'America/Los_Angeles',
-                                                })
+                                                item.endAt +
+                                                  this.state.timeOffset
                                               ).format('h:mm A on MM/DD/YYYY')}
                                             </Text>
                                           ) : (
                                             <Text style={styles.endAt}>
                                               {Moment(
-                                                new Date(
-                                                  parseInt(item.endAt)
-                                                ).toLocaleString('en-US', {
-                                                  timeZone:
-                                                    'America/Los_Angeles',
-                                                })
+                                                item.endAt +
+                                                  this.state.timeOffset
                                               ).format('hh:mm A on MM/DD/YYYY')}
                                             </Text>
                                           )}
@@ -716,7 +878,17 @@ export default class MyEventsScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -756,7 +928,7 @@ const styles = StyleSheet.create({
   },
   squadOption: {
     marginTop: Dimensions.get('window').height * 0.02,
-    fontSize: 20,
+    fontSize: 22,
     textAlign: 'center',
     fontWeight: 'bold',
     color: 'white',
@@ -776,7 +948,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Dimensions.get('window').height * 0.05,
+    marginTop: Dimensions.get('window').height * 0.01,
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
@@ -823,5 +995,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 10,
     width: Dimensions.get('window').width * 0.6,
+  },
+  circle: {
+    width: 50,
+    height: 25,
+    borderRadius: 100 / 2,
+    backgroundColor: '#D616CF',
+    justifyContent: 'center',
+    textAlign: 'center',
+    marginTop: Dimensions.get('window').height * 0.015,
+    marginRight: Dimensions.get('window').width * 0.3,
+    alignSelf: 'right',
+    alignContent: 'center',
+    alignItems: 'center',
   },
 });

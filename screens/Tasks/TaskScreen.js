@@ -10,22 +10,51 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, RadioButton } from 'react-native-paper';
 import { CheckBox } from 'react-native-elements';
+import Moment from 'moment';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class TaskScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       title: navigation.getParam('taskName', 'Task'),
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
     };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -38,6 +67,7 @@ export default class TaskScreen extends React.Component {
       cursquad: '',
       showAssigneeCard: false,
       showStatusCard: false,
+      showDrawer: false,
       selected_user: [
         '0',
         {
@@ -46,48 +76,107 @@ export default class TaskScreen extends React.Component {
           status: 'initialize',
         },
       ],
+      timeOffset: 0,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
-    const curtask = params.curtask;
-    const users = Object.entries(curtask.users);
-    var selected_user = '';
-    if (users.length === 1) {
-      selected_user = users[0];
-    } else {
-      selected_user = [
-        '0',
-        {
-          user_id: 'initialize',
-          user_name: 'initialize',
-          status: 'initialize',
-        },
-      ];
-    }
+    const task_id = params.task_id;
+    var curtask = '';
 
-    this.setState({
-      curtask: curtask,
-      users: users,
-      selected_user: selected_user,
-    });
-
-    var data_ref = firebase
+    firebase
       .database()
-      .ref('users/' + firebase.auth().currentUser.uid);
-    data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val() });
-    });
+      .ref('tasks/' + task_id)
+      .on('value', snapshot => {
+        var item = snapshot.val();
+        item.key = snapshot.key;
+        //get the unseen status of the current user
+        var users = Object.values(item.users);
+        var userIndex = users.findIndex(
+          obj => obj.user_id === firebase.auth().currentUser.uid
+        );
+        if (userIndex !== -1) {
+          item.unseen = users[userIndex].unseen;
+        } else {
+          item.unseen = null;
+        }
+        curtask = item;
+        if (curtask.comments === undefined) {
+          curtask.comments = 0;
+        }
 
-    if (curtask.squad_id !== 'null') {
-      var squad_ref = firebase.database().ref('squads/' + curtask.squad_id);
-      squad_ref.on('value', snapshot => {
-        this.setState({ cursquad: snapshot.val() });
+        var taskUsers = Object.entries(curtask.users);
+        var date = new Date();
+        var timeOffset = date.getTimezoneOffset();
+
+        if (curtask.unseen) {
+          firebase
+            .database()
+            .ref('users/' + firebase.auth().currentUser.uid + '/tasks')
+            .once('value', snapshot => {
+              var total_unseen = snapshot.val().total_unseen - 1;
+              if (total_unseen < 0) {
+                total_unseen = 0;
+              }
+              firebase
+                .database()
+                .ref('users/' + firebase.auth().currentUser.uid + '/tasks')
+                .child('total_unseen')
+                .set(total_unseen);
+            });
+          var taskUsersArray = Object.values(curtask.users);
+          var taskUserIndex = taskUsersArray.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          taskUsersArray[taskUserIndex].unseen = false;
+          users = Object.entries(taskUsersArray);
+          firebase
+            .database()
+            .ref('tasks/' + curtask.key)
+            .child('users')
+            .set(taskUsersArray);
+        }
+
+        var selected_user = '';
+        if (users.length === 1) {
+          selected_user = users[0];
+        } else {
+          selected_user = [
+            '0',
+            {
+              user_id: 'initialize',
+              user_name: 'initialize',
+              status: 'initialize',
+            },
+          ];
+        }
+
+        this.setState({
+          curtask: curtask,
+          users: taskUsers,
+          selected_user: selected_user,
+          timeOffset: timeOffset,
+        });
+
+        var data_ref = firebase
+          .database()
+          .ref('users/' + firebase.auth().currentUser.uid);
+        data_ref.on('value', snapshot => {
+          this.setState({ curuser: snapshot.val() });
+        });
+
+        if (curtask.squad_id !== 'null') {
+          var squad_ref = firebase.database().ref('squads/' + curtask.squad_id);
+          squad_ref.on('value', snapshot => {
+            this.setState({ cursquad: snapshot.val() });
+          });
+        }
+
+        this.setState({ loading: false });
       });
-    }
-
-    this.setState({ loading: false });
   }
 
   switchAssigneeCard() {
@@ -213,6 +302,32 @@ export default class TaskScreen extends React.Component {
     });
   }
 
+  openComments() {
+    NavigationService.navigate('CommentScreen', {
+      parentName: 'Task Comments',
+      parent: this.state.curtask.key,
+      comment_type: 'tasks',
+    });
+  }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
+
   render() {
     return (
       <React.Fragment>
@@ -225,20 +340,23 @@ export default class TaskScreen extends React.Component {
             this.state.showStatusCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curtask.title}
-                  </Text>
                   <ScrollView
                     style={{
                       height: Dimensions.get('window').height * 0.45,
                       width: Dimensions.get('window').width * 0.7,
                       marginBottom: Dimensions.get('window').height * 0.025,
                     }}>
-                    <Text style={styles.detailsInfo}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}
+                      selectable={true}>
+                      {this.state.curtask.title}
+                    </Text>
+                    <Text style={styles.detailsInfo} selectable={true}>
                       {this.state.curtask.description}
                     </Text>
                     <View style={styles.line} />
@@ -274,11 +392,9 @@ export default class TaskScreen extends React.Component {
                     <View style={styles.line} />
                     <Text style={styles.generic}>Creator</Text>
                     <Text style={styles.detailsInfo}>
-                      {new Date(
-                        parseInt(this.state.curtask.createdAt)
-                      ).toLocaleString('en-US', {
-                        timeZone: 'America/Los_Angeles',
-                      })}
+                      {Moment(
+                        this.state.curtask.createdAt + this.state.timeOffset
+                      ).format('MM/DD/YYYY, hh:mm A')}
                     </Text>
                     <View style={styles.line} />
                     <Text style={styles.generic}>Created At</Text>
@@ -290,14 +406,27 @@ export default class TaskScreen extends React.Component {
                         <View style={styles.line} />
                         <Text style={styles.generic}>Squad</Text>
                       </React.Fragment>
-                    ) : 
+                    ) : (
                       <React.Fragment>
-                        <Text style={styles.detailsInfo}>
-                          Personal Task
-                        </Text>
+                        <Text style={styles.detailsInfo}>Personal Task</Text>
                         <View style={styles.line} />
-                        <Text style={styles.generic}>Only you can see this task</Text>
-                      </React.Fragment>}
+                        <Text style={styles.generic}>
+                          Only you can see this task
+                        </Text>
+                      </React.Fragment>
+                    )}
+                    <TouchableOpacity onPress={this.openComments.bind(this)}>
+                      {this.state.curtask.comments !== 0 ? (
+                        <Text style={styles.detailsInfo}>
+                          Click to comment ({this.state.curtask.comments})
+                        </Text>
+                      ) : (
+                        <Text style={styles.detailsInfo}>
+                          Click to leave the first comment
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                    <View style={styles.line} />
                   </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
@@ -321,48 +450,78 @@ export default class TaskScreen extends React.Component {
             {this.state.showAssigneeCard === true ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curtask.title}
-                  </Text>
-                  <View style={styles.line} />
-                  <FlatList
-                    style={{ padding: 10 }}
-                    data={this.state.users}
-                    extraData={this.state}
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item }) => (
-                      <React.Fragment>
-                        {this.state.curtask.creator_id ===
-                          firebase.auth().currentUser.uid ||
-                        this.state.cursquad.organizer_id ===
-                          firebase.auth().currentUser.uid ? (
-                          <TouchableOpacity
-                            onPress={this.userRadioClick.bind(this, item)}>
+                  <ScrollView
+                    style={{
+                      height: Dimensions.get('window').height * 0.45,
+                      width: Dimensions.get('window').width * 0.7,
+                      marginBottom: Dimensions.get('window').height * 0.025,
+                    }}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}>
+                      {this.state.curtask.title}
+                    </Text>
+                    <View style={styles.line} />
+                    <FlatList
+                      style={{ padding: 10 }}
+                      data={this.state.users}
+                      extraData={this.state}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({ item }) => (
+                        <React.Fragment>
+                          {this.state.curtask.creator_id ===
+                            firebase.auth().currentUser.uid ||
+                          this.state.cursquad.organizer_id ===
+                            firebase.auth().currentUser.uid ? (
+                            <TouchableOpacity
+                              onPress={this.userRadioClick.bind(this, item)}>
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                }}>
+                                <View
+                                  style={{
+                                    paddingTop:
+                                      Dimensions.get('window').height * 0.05,
+                                  }}>
+                                  <RadioButton
+                                    onPress={this.userRadioClick.bind(
+                                      this,
+                                      item
+                                    )}
+                                    color="#5B4FFF"
+                                    value={item}
+                                    status={
+                                      this.state.selected_user[1].user_id ===
+                                      item[1].user_id
+                                        ? 'checked'
+                                        : 'unchecked'
+                                    }
+                                  />
+                                </View>
+                                <View
+                                  style={{
+                                    flexDirection: 'column',
+                                  }}>
+                                  <Text style={styles.assigneesInfo}>
+                                    {item[1].status}
+                                  </Text>
+                                  <View style={styles.radioLine} />
+                                  <Text style={styles.assigneesGeneric}>
+                                    {item[1].user_name}
+                                  </Text>
+                                </View>
+                              </View>
+                            </TouchableOpacity>
+                          ) : (
                             <View
                               style={{
                                 flexDirection: 'row',
                               }}>
-                              <View
-                                style={{
-                                  paddingTop:
-                                    Dimensions.get('window').height * 0.05,
-                                }}>
-                                <RadioButton
-                                  onPress={this.userRadioClick.bind(this, item)}
-                                  color="#5B4FFF"
-                                  value={item}
-                                  status={
-                                    this.state.selected_user[1].user_id ===
-                                    item[1].user_id
-                                      ? 'checked'
-                                      : 'unchecked'
-                                  }
-                                />
-                              </View>
                               <View
                                 style={{
                                   flexDirection: 'column',
@@ -376,29 +535,11 @@ export default class TaskScreen extends React.Component {
                                 </Text>
                               </View>
                             </View>
-                          </TouchableOpacity>
-                        ) : (
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                            }}>
-                            <View
-                              style={{
-                                flexDirection: 'column',
-                              }}>
-                              <Text style={styles.assigneesInfo}>
-                                {item[1].status}
-                              </Text>
-                              <View style={styles.radioLine} />
-                              <Text style={styles.assigneesGeneric}>
-                                {item[1].user_name}
-                              </Text>
-                            </View>
-                          </View>
-                        )}
-                      </React.Fragment>
-                    )}
-                  />
+                          )}
+                        </React.Fragment>
+                      )}
+                    />
+                  </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
                   {this.state.cursquad.organizer_id ===
@@ -427,47 +568,56 @@ export default class TaskScreen extends React.Component {
             {this.state.showStatusCard === true ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curtask.title}
-                  </Text>
-                  <Text style={styles.taskTypeInfo}>
-                    {this.state.selected_user[1].user_name}
-                  </Text>
-                  <View style={styles.line} />
-                  <FlatList
-                    style={{ padding: 10 }}
-                    extraData={this.state.checked}
-                    data={this.state.statuses}
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item }) => (
-                      <React.Fragment>
-                        <TouchableOpacity
-                          onPress={this.radioClick.bind(this, item)}>
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                            }}>
-                            <RadioButton
-                              onPress={this.radioClick.bind(this, item)}
-                              color="#5B4FFF"
-                              value={item}
-                              status={
-                                this.state.checked === item
-                                  ? 'checked'
-                                  : 'unchecked'
-                              }
-                            />
-                            <Text style={styles.responseInfo}>{item}</Text>
-                          </View>
-                        </TouchableOpacity>
-                        <View style={styles.line} />
-                      </React.Fragment>
-                    )}
-                  />
+                  <ScrollView
+                    style={{
+                      height: Dimensions.get('window').height * 0.45,
+                      width: Dimensions.get('window').width * 0.7,
+                      marginBottom: Dimensions.get('window').height * 0.025,
+                    }}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}>
+                      {this.state.curtask.title}
+                    </Text>
+                    <Text style={styles.taskTypeInfo}>
+                      {this.state.selected_user[1].user_name}
+                    </Text>
+                    <View style={styles.line} />
+                    <FlatList
+                      style={{ padding: 10 }}
+                      extraData={this.state.checked}
+                      data={this.state.statuses}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({ item }) => (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.radioClick.bind(this, item)}>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                              }}>
+                              <RadioButton
+                                onPress={this.radioClick.bind(this, item)}
+                                color="#5B4FFF"
+                                value={item}
+                                status={
+                                  this.state.checked === item
+                                    ? 'checked'
+                                    : 'unchecked'
+                                }
+                              />
+                              <Text style={styles.responseInfo}>{item}</Text>
+                            </View>
+                          </TouchableOpacity>
+                          <View style={styles.line} />
+                        </React.Fragment>
+                      )}
+                    />
+                  </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
                   <TouchableOpacity onPress={this.onSubmit.bind(this)}>
@@ -485,7 +635,17 @@ export default class TaskScreen extends React.Component {
             ) : null}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -553,7 +713,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   line: {
     backgroundColor: '#5B4FFF',
@@ -584,7 +744,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',

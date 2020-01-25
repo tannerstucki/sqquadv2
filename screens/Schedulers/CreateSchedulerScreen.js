@@ -12,6 +12,8 @@ import {
   FlatList,
   ScrollView,
   Platform,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { Calendar } from 'react-native-calendars';
@@ -22,12 +24,40 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreateSchedulerScreen extends React.Component {
-  static navigationOptions = {
-    title: 'New Time Request',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Time Request',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -43,6 +73,7 @@ export default class CreateSchedulerScreen extends React.Component {
       assigneeCardShow: false,
       calendarCardShow: false,
       timeCardShow: false,
+      showDrawer: false,
       curassignee: '',
       datesSelected: {},
       datesArray: [],
@@ -121,6 +152,8 @@ export default class CreateSchedulerScreen extends React.Component {
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+    
     const { params } = this.props.navigation.state;
     const squads = params.squads;
 
@@ -210,6 +243,24 @@ export default class CreateSchedulerScreen extends React.Component {
       });
     }
   }
+  
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   addAssignee() {
     var assignees = [];
@@ -223,6 +274,7 @@ export default class CreateSchedulerScreen extends React.Component {
         user_id: curassignee[1].user_id,
         user_name: curassignee[1].name,
         responded: false,
+        unseen: true,
       });
     }
     this.setState({
@@ -252,6 +304,7 @@ export default class CreateSchedulerScreen extends React.Component {
           user_id: curassignee[1].user_id,
           user_name: curassignee[1].name,
           responded: false,
+          unseen: true,
         });
       }
     }
@@ -263,98 +316,124 @@ export default class CreateSchedulerScreen extends React.Component {
   }
 
   onCreatePress() {
-    var squad_id = this.state.selectedSquad.key;
-    var duration =
-      this.state.hour_duration * 60 + this.state.minute_duration * 1;
+    if (
+      !isNaN(this.state.hour_duration) &&
+      !isNaN(this.state.minute_duration)
+    ) {
+      var squad_id = this.state.selectedSquad.key;
+      var duration =
+        this.state.hour_duration * 60 + this.state.minute_duration * 1;
 
-    var assignees = [];
-    assignees = this.state.assignees;
-    assignees.push({
-      user_id: firebase.auth().currentUser.uid,
-      user_name:
-        this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
-      responded: false,
-    });
-
-    var suggested_dates = [];
-    for (let i = 0; i < this.state.datesArray.length; i++) {
-      suggested_dates.push({
-        date: this.state.datesArray[i],
-      });
-    }
-
-    var suggested_times = [];
-    for (let i = 0; i < this.state.added_time_objects.length; i++) {
-      suggested_times.push({
-        time: this.state.added_time_objects[i],
-        votes: 0,
-      });
-    }
-
-    var scheduler_post = firebase
-      .database()
-      .ref('schedulers/')
-      .push({
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        creator_id: firebase.auth().currentUser.uid,
-        creator_name:
+      var assignees = [];
+      assignees = this.state.assignees;
+      assignees.push({
+        user_id: firebase.auth().currentUser.uid,
+        user_name:
           this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
-        description: this.state.description.trim(),
-        duration: duration,
-        event_created: false,
-        squad_id: squad_id,
-        status: 'open',
-        suggested_dates: suggested_dates,
-        suggested_times: suggested_times,
-        title: this.state.title.trim(),
-        total_votes: 0,
-        users: assignees,
-      })
-      .then(snapshot => {
-        var scheduler_id = snapshot.key;
+        responded: false,
+        unseen: true,
+      });
 
-        for (let i = 0; i < assignees.length; i++) {
-          firebase
-            .database()
-            .ref('users/' + assignees[i].user_id)
-            .child('schedulers')
-            .push({
-              scheduler_id: scheduler_id,
-            });
-        }
+      var suggested_dates = [];
+      for (let i = 0; i < this.state.datesArray.length; i++) {
+        suggested_dates.push({
+          date: this.state.datesArray[i],
+        });
+      }
 
-        if (
-          squad_id !== 'null' &&
-          this.state.assignees.length === this.state.users.length
-        ) {
-          firebase
-            .database()
-            .ref('threads')
-            .orderByChild('squad_id')
-            .equalTo(squad_id)
-            .once('value', snapshot => {
-              firebase
-                .database()
-                .ref('messages/')
-                .push({
-                  createdAt: firebase.database.ServerValue.TIMESTAMP,
-                  text:
-                    this.state.curuser.first_name +
-                    ' ' +
-                    this.state.curuser.last_name +
-                    ' has created a new time request for all squad members: "' +
-                    this.state.title.trim() +
-                    '". Long hold this message to show your availability.',
-                  thread: Object.keys(snapshot.val())[0],
-                  user: {
-                    _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
-                    name: 'Virtual Manager',
-                  },
-                  extra_info: 'scheduler',
-                  extra_id: scheduler_id,
-                });
-            });
-        } /*
+      var suggested_times = [];
+      for (let i = 0; i < this.state.added_time_objects.length; i++) {
+        suggested_times.push({
+          time: this.state.added_time_objects[i],
+          votes: 0,
+        });
+      }
+
+      var scheduler_post = firebase
+        .database()
+        .ref('schedulers/')
+        .push({
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          creator_id: firebase.auth().currentUser.uid,
+          creator_name:
+            this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
+          description: this.state.description.trim(),
+          duration: duration,
+          event_created: false,
+          squad_id: squad_id,
+          status: 'open',
+          suggested_dates: suggested_dates,
+          suggested_times: suggested_times,
+          title: this.state.title.trim(),
+          total_votes: 0,
+          users: assignees,
+        })
+        .then(snapshot => {
+          var scheduler_id = snapshot.key;
+
+          for (let i = 0; i < assignees.length; i++) {
+            //Add scheduler to user list
+            firebase
+              .database()
+              .ref('users/' + assignees[i].user_id + '/schedulers')
+              .child(scheduler_id)
+              .set({
+                scheduler_id: scheduler_id,
+              })
+              .then(
+                //Increase unseen schedulers
+                firebase
+                  .database()
+                  .ref('users/' + assignees[i].user_id + '/schedulers')
+                  .once('value', snapshot => {
+                    var total_unseen = 1;
+                    if (
+                      snapshot.val().total_unseen !== undefined &&
+                      snapshot.val().total_unseen !== null
+                    ) {
+                      total_unseen = snapshot.val().total_unseen + 1;
+                    }
+                    firebase
+                      .database()
+                      .ref('users/' + assignees[i].user_id + '/schedulers')
+                      .child('total_unseen')
+                      .set(total_unseen);
+                  })
+              );
+          }
+
+          if (
+            squad_id !== 'null' &&
+            this.state.assignees.length === this.state.users.length
+          ) {
+            firebase
+              .database()
+              .ref('threads')
+              .orderByChild('squad_id')
+              .equalTo(squad_id)
+              .once('value', snapshot => {
+                firebase
+                  .database()
+                  .ref('messages/')
+                  .push({
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    text:
+                      this.state.curuser.first_name +
+                      ' ' +
+                      this.state.curuser.last_name +
+                      ' has created a new time request for all squad members: "' +
+                      this.state.title.trim() +
+                      '". Long hold this message to show your availability.',
+                    thread: Object.keys(snapshot.val())[0],
+                    user: {
+                      _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
+                      name: 'Virtual Manager',
+                    },
+                    extra_info: 'scheduler',
+                    extra_id: scheduler_id,
+                  });
+              });
+          } /*
         Add Functionality to send messages from the virtual manager to an individual person
         else {
           for (let i = 0; i < assignees.length; i++) {
@@ -382,10 +461,12 @@ export default class CreateSchedulerScreen extends React.Component {
             }
           }
         }*/
-      });
-
-    NavigationService.navigate('MySchedulersScreen');
-    alert('Your time request has been created!');
+          NavigationService.navigate('MySchedulersScreen');
+          alert('Your time request has been created!');
+        });
+    } else {
+      alert('Sorry, please enter a valid duration.');
+    }
   }
 
   toggleCalendar(extra_info) {
@@ -467,7 +548,7 @@ export default class CreateSchedulerScreen extends React.Component {
     }
 
     datesArray.sort(function(date1, date2) {
-      return date1 > date2;
+      return Moment(date1) - Moment(date2);
     });
 
     if (Object.keys(this.state.datesSelected).length > 0) {
@@ -1280,7 +1361,17 @@ export default class CreateSchedulerScreen extends React.Component {
             </View>
           </ScrollView>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }

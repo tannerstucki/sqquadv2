@@ -10,6 +10,8 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,11 +24,37 @@ export default class PollScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       title: navigation.getParam('pollName', 'Poll'),
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
     };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       users: ['intitialize'],
@@ -39,40 +67,104 @@ export default class PollScreen extends React.Component {
       checked: [],
       single: '',
       organizer_id: '',
+      timeOffset: 0,
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
-    const curpoll = params.curpoll;
-    const responses = Object.entries(curpoll.responses);
-    const users = Object.entries(curpoll.users);
+    const poll_id = params.poll_id;
+    var curpoll = '';
 
-    if (curpoll.responded) {
-      responses.sort(function(response1, response2) {
-        return response1[1].votes < response2[1].votes;
-      });
-    }
-
-    this.setState({
-      curpoll: curpoll,
-      responses: responses,
-      users: users,
-    });
-
-    var data_ref = firebase
+    firebase
       .database()
-      .ref('users/' + firebase.auth().currentUser.uid);
-    data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val() });
-    });
+      .ref('polls/' + poll_id)
+      .on('value', snapshot => {
+        var item = snapshot.val();
+        item.key = snapshot.key;
+        //get the responded status of the current user
+        var users = Object.values(item.users);
+        var userIndex = users.findIndex(
+          obj => obj.user_id === firebase.auth().currentUser.uid
+        );
+        if (userIndex !== -1) {
+          item.responded = users[userIndex].responded;
+          item.answers = users[userIndex].answers;
+          item.unseen = users[userIndex].unseen;
+        } else {
+          item.responded = null;
+          item.unseen = null;
+        }
+        curpoll = item;
+        if (curpoll.comments === undefined) {
+          curpoll.comments = 0;
+        }
 
-    var squad_ref = firebase.database().ref('squads/' + curpoll.squad_id);
-    squad_ref.on('value', snapshot => {
-      this.setState({ organizer_id: snapshot.val().organizer_id });
-    });
+        const responses = Object.entries(curpoll.responses);
+        var pollUsers = Object.entries(curpoll.users);
 
-    this.setState({ loading: false });
+        var date = new Date();
+        var timeOffset = date.getTimezoneOffset();
+
+        if (curpoll.responded) {
+          responses.sort(function(response1, response2) {
+            return response2[1].votes - response1[1].votes;
+          });
+        }
+
+        if (curpoll.unseen) {
+          firebase
+            .database()
+            .ref('users/' + firebase.auth().currentUser.uid + '/polls')
+            .once('value', snapshot => {
+              var total_unseen = snapshot.val().total_unseen - 1;
+              if (total_unseen < 0) {
+                total_unseen = 0;
+              }
+              firebase
+                .database()
+                .ref('users/' + firebase.auth().currentUser.uid + '/polls')
+                .child('total_unseen')
+                .set(total_unseen);
+            });
+
+          var pollUsersArray = Object.values(curpoll.users);
+          var pollUserIndex = pollUsersArray.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          pollUsersArray[pollUserIndex].unseen = false;
+          users = Object.entries(pollUsersArray);
+          firebase
+            .database()
+            .ref('polls/' + curpoll.key)
+            .child('users')
+            .set(pollUsersArray);
+        }
+
+        this.setState({
+          curpoll: curpoll,
+          responses: responses,
+          users: pollUsers,
+          timeOffset: timeOffset,
+        });
+
+        var data_ref = firebase
+          .database()
+          .ref('users/' + firebase.auth().currentUser.uid);
+        data_ref.on('value', snapshot => {
+          this.setState({ curuser: snapshot.val() });
+        });
+
+        var squad_ref = firebase.database().ref('squads/' + curpoll.squad_id);
+        squad_ref.on('value', snapshot => {
+          this.setState({ organizer_id: snapshot.val().organizer_id });
+        });
+
+        this.setState({ loading: false });
+      });
   }
 
   switchDetailsCard() {
@@ -84,7 +176,6 @@ export default class PollScreen extends React.Component {
   }
 
   switchResponsesCard() {
-    console.log(this.state.curpoll);
     if (this.state.showResponsesCard === true) {
       this.setState({
         showResponsesCard: false,
@@ -135,8 +226,12 @@ export default class PollScreen extends React.Component {
           }
         }
 
+        responses.sort(function(response1, response2) {
+          return response2.votes - response1.votes;
+        });
+
         //get the responded status of the current user
-        var users = this.state.curpoll.users;
+        var users = Object.values(this.state.curpoll.users);
         var userIndex = users.findIndex(
           obj => obj.user_id === firebase.auth().currentUser.uid
         );
@@ -168,6 +263,7 @@ export default class PollScreen extends React.Component {
             users: users,
             answers: answers,
             key: this.state.curpoll.key,
+            comments: this.state.curpoll.comments,
           },
           users: Object.entries(users),
           responses: Object.entries(pollUpdateData.responses),
@@ -186,6 +282,7 @@ export default class PollScreen extends React.Component {
     const rootRef = firebase.database().ref();
     const pollRef = rootRef.child('polls/' + this.state.curpoll.key);
     var pollUpdateData = '';
+    var curpoll = '';
 
     if (this.state.curpoll.status === 'open') {
       pollUpdateData = {
@@ -199,6 +296,7 @@ export default class PollScreen extends React.Component {
         status: 'closed',
         total_votes: this.state.curpoll.total_votes,
         users: this.state.curpoll.users,
+        comments: this.state.curpoll.comments,
       };
       alert('You have closed this poll');
     } else {
@@ -213,6 +311,7 @@ export default class PollScreen extends React.Component {
         status: 'open',
         total_votes: this.state.curpoll.total_votes,
         users: this.state.curpoll.users,
+        comments: this.state.curpoll.comments,
       };
       alert('You have reopened this poll');
     }
@@ -222,6 +321,32 @@ export default class PollScreen extends React.Component {
     this.setState({ curpoll: pollUpdateData });
     //NavigationService.navigate('MyPollsScreen');
   }
+
+  openComments() {
+    NavigationService.navigate('CommentScreen', {
+      parentName: 'Poll Comments',
+      parent: this.state.curpoll.key,
+      comment_type: 'polls',
+    });
+  }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   render() {
     return (
@@ -237,51 +362,60 @@ export default class PollScreen extends React.Component {
             this.state.showResponsesCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curpoll.question}
-                  </Text>
-                  <Text style={styles.pollTypeInfo}>
-                    {this.state.curpoll.poll_type} response question
-                  </Text>
-                  <View style={styles.line} />
-                  <FlatList
-                    style={{ padding: 10 }}
-                    extraData={this.state.checked}
-                    data={this.state.responses}
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item }) => (
-                      <React.Fragment>
-                        <TouchableOpacity
-                          onPress={this.radioClick.bind(this, item)}>
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                            }}>
-                            <RadioButton
-                              onPress={this.radioClick.bind(this, item)}
-                              color="#5B4FFF"
-                              value={item[0]}
-                              status={
-                                this.state.checked.findIndex(
-                                  element => element === item[0]
-                                ) !== -1
-                                  ? 'checked'
-                                  : 'unchecked'
-                              }
-                            />
-                            <Text style={styles.responseInfo}>
-                              {item[1].text}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                        <View style={styles.greyLine} />
-                      </React.Fragment>
-                    )}
-                  />
+                  <ScrollView
+                    style={{
+                      height: Dimensions.get('window').height * 0.45,
+                      width: Dimensions.get('window').width * 0.7,
+                      marginBottom: Dimensions.get('window').height * 0.025,
+                    }}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}>
+                      {this.state.curpoll.question}
+                    </Text>
+                    <Text style={styles.pollTypeInfo}>
+                      {this.state.curpoll.poll_type} response question
+                    </Text>
+                    <View style={styles.line} />
+                    <FlatList
+                      style={{ padding: 10 }}
+                      extraData={this.state.checked}
+                      data={this.state.responses}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({ item }) => (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.radioClick.bind(this, item)}>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                              }}>
+                              <RadioButton
+                                onPress={this.radioClick.bind(this, item)}
+                                color="#5B4FFF"
+                                value={item[0]}
+                                status={
+                                  this.state.checked.findIndex(
+                                    element => element === item[0]
+                                  ) !== -1
+                                    ? 'checked'
+                                    : 'unchecked'
+                                }
+                              />
+                              <Text style={styles.responseInfo}>
+                                {item[1].text}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                          <View style={styles.greyLine} />
+                        </React.Fragment>
+                      )}
+                    />
+                  </ScrollView>
                 </Card>
                 <View style={styles.buttonRow}>
                   <TouchableOpacity onPress={this.onSubmit.bind(this)}>
@@ -301,18 +435,22 @@ export default class PollScreen extends React.Component {
                 {this.state.showDetailsCard ? (
                   <React.Fragment>
                     <Card style={styles.resultsCard}>
-                      <ScrollView>
+                      <ScrollView
+                        style={{
+                          height: Dimensions.get('window').height * 0.45,
+                          width: Dimensions.get('window').width * 0.7,
+                          marginBottom: Dimensions.get('window').height * 0.025,
+                          padding: 0,
+                        }}>
                         <Text style={styles.detailsInfo}>
                           {this.state.curpoll.creator_name}
                         </Text>
                         <View style={styles.line} />
                         <Text style={styles.generic}>Creator</Text>
                         <Text style={styles.detailsInfo}>
-                          {new Date(
-                            parseInt(this.state.curpoll.createdAt)
-                          ).toLocaleString('en-US', {
-                            timeZone: 'America/Los_Angeles',
-                          })}
+                          {Moment(
+                            this.state.curpoll.createdAt + this.state.timeOffset
+                          ).format('MM/DD/YYYY, hh:mm A')}
                         </Text>
                         <View style={styles.line} />
                         <Text style={styles.generic}>Created At</Text>
@@ -326,6 +464,19 @@ export default class PollScreen extends React.Component {
                         </Text>
                         <View style={styles.line} />
                         <Text style={styles.generic}>Number of Responses</Text>
+                        <TouchableOpacity
+                          onPress={this.openComments.bind(this)}>
+                          {this.state.curpoll.comments !== 0 ? (
+                            <Text style={styles.detailsInfo}>
+                              Click to comment ({this.state.curpoll.comments})
+                            </Text>
+                          ) : (
+                            <Text style={styles.detailsInfo}>
+                              Click to leave the first comment
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                        <View style={styles.line} />
                       </ScrollView>
                     </Card>
                     <View style={styles.buttonRow}>
@@ -357,17 +508,6 @@ export default class PollScreen extends React.Component {
                     {this.state.showResponsesCard === true ? (
                       <React.Fragment>
                         <Card style={styles.resultsCard}>
-                          <Text
-                            style={[
-                              styles.info,
-                              {
-                                marginBottom:
-                                  Dimensions.get('window').height * 0.01,
-                              },
-                            ]}>
-                            {this.state.curpoll.question}
-                          </Text>
-                          <View style={styles.line} />
                           <ScrollView
                             style={{
                               height: Dimensions.get('window').height * 0.45,
@@ -375,6 +515,17 @@ export default class PollScreen extends React.Component {
                               marginBottom:
                                 Dimensions.get('window').height * 0.025,
                             }}>
+                            <Text
+                              style={[
+                                styles.info,
+                                {
+                                  marginBottom:
+                                    Dimensions.get('window').height * 0.01,
+                                },
+                              ]}>
+                              {this.state.curpoll.question}
+                            </Text>
+                            <View style={styles.line} />
                             <FlatList
                               style={{
                                 padding: 10,
@@ -415,85 +566,93 @@ export default class PollScreen extends React.Component {
                     ) : (
                       <React.Fragment>
                         <Card style={styles.resultsCard}>
-                          <Text
-                            style={[
-                              styles.info,
-                              {
-                                marginBottom:
-                                  Dimensions.get('window').height * 0.01,
-                              },
-                            ]}>
-                            {this.state.curpoll.question}
-                          </Text>
-                          {this.state.curpoll.creator_id ===
-                            firebase.auth().currentUser.uid ||
-                          this.state.organizer_id ===
-                            firebase.auth().currentUser.uid ? (
-                            <Text style={styles.pollTypeInfo}>Results</Text>
-                          ) : (
-                            <React.Fragment>
-                              {this.state.curpoll.responded !== null ? (
-                                <React.Fragment>
-                                  {this.state.curpoll.responded === true ? (
-                                    <Text style={styles.pollTypeInfo}>
-                                      You have completed this poll.
-                                    </Text>
-                                  ) : (
-                                    <Text style={styles.pollTypeInfo}>
-                                      This poll is closed.
-                                    </Text>
-                                  )}
-                                  <Text style={styles.pollTypeInfo}>
-                                    The poll creator or squad organizer can
-                                    share the results with you.
-                                  </Text>
-                                  <View style={styles.line} />
-                                  <Text style={styles.pollTypeInfo}>
-                                    You answered: {this.state.curpoll.answers}
-                                  </Text>
-                                </React.Fragment>
-                              ) : (
-                                <React.Fragment>
-                                  <Text style={styles.pollTypeInfo}>
-                                    You were not asked to reply to this poll.
-                                  </Text>
-                                  <Text style={styles.pollTypeInfo}>
-                                    The poll creator or squad organizer can
-                                    share the results with you.
-                                  </Text>
-                                </React.Fragment>
-                              )}
-                            </React.Fragment>
-                          )}
-                          <View style={styles.line} />
-                          <FlatList
-                            style={{ padding: 10 }}
-                            extraData={this.state}
-                            data={this.state.responses}
-                            keyExtractor={(item, index) => index.toString()}
-                            renderItem={({ item }) => (
+                          <ScrollView
+                            style={{
+                              height: Dimensions.get('window').height * 0.45,
+                              width: Dimensions.get('window').width * 0.7,
+                              marginBottom:
+                                Dimensions.get('window').height * 0.025,
+                            }}>
+                            <Text
+                              style={[
+                                styles.info,
+                                {
+                                  marginBottom:
+                                    Dimensions.get('window').height * 0.01,
+                                },
+                              ]}>
+                              {this.state.curpoll.question}
+                            </Text>
+                            {this.state.curpoll.creator_id ===
+                              firebase.auth().currentUser.uid ||
+                            this.state.organizer_id ===
+                              firebase.auth().currentUser.uid ? (
+                              <Text style={styles.pollTypeInfo}>Results</Text>
+                            ) : (
                               <React.Fragment>
-                                <View
-                                  style={{
-                                    flexDirection: 'row',
-                                  }}>
-                                  {this.state.curpoll.creator_id ===
-                                    firebase.auth().currentUser.uid ||
-                                  this.state.organizer_id ===
-                                    firebase.auth().currentUser.uid ? (
-                                    <Text style={styles.responseInfo}>
-                                      {item[1].text}: {item[1].votes} Votes
+                                {this.state.curpoll.responded !== null ? (
+                                  <React.Fragment>
+                                    {this.state.curpoll.responded === true ? (
+                                      <Text style={styles.pollTypeInfo}>
+                                        You have completed this poll.
+                                      </Text>
+                                    ) : (
+                                      <Text style={styles.pollTypeInfo}>
+                                        This poll is closed.
+                                      </Text>
+                                    )}
+                                    <Text style={styles.pollTypeInfo}>
+                                      The poll creator or squad organizer can
+                                      share the results with you.
                                     </Text>
-                                  ) : (
-                                    <Text style={styles.responseInfo}>
-                                      {item[1].text}
+                                    <View style={styles.line} />
+                                    <Text style={styles.pollTypeInfo}>
+                                      You answered: {this.state.curpoll.answers}
                                     </Text>
-                                  )}
-                                </View>
-                                <View style={styles.greyLine} />
+                                  </React.Fragment>
+                                ) : (
+                                  <React.Fragment>
+                                    <Text style={styles.pollTypeInfo}>
+                                      You were not asked to reply to this poll.
+                                    </Text>
+                                    <Text style={styles.pollTypeInfo}>
+                                      The poll creator or squad organizer can
+                                      share the results with you.
+                                    </Text>
+                                  </React.Fragment>
+                                )}
                               </React.Fragment>
                             )}
-                          />
+                            <View style={styles.line} />
+                            <FlatList
+                              style={{ padding: 10 }}
+                              extraData={this.state}
+                              data={this.state.responses}
+                              keyExtractor={(item, index) => index.toString()}
+                              renderItem={({ item }) => (
+                                <React.Fragment>
+                                  <View
+                                    style={{
+                                      flexDirection: 'row',
+                                    }}>
+                                    {this.state.curpoll.creator_id ===
+                                      firebase.auth().currentUser.uid ||
+                                    this.state.organizer_id ===
+                                      firebase.auth().currentUser.uid ? (
+                                      <Text style={styles.responseInfo}>
+                                        {item[1].text}: {item[1].votes} Votes
+                                      </Text>
+                                    ) : (
+                                      <Text style={styles.responseInfo}>
+                                        {item[1].text}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  <View style={styles.greyLine} />
+                                </React.Fragment>
+                              )}
+                            />
+                          </ScrollView>
                         </Card>
                         <View style={styles.buttonRow}>
                           {this.state.curpoll.creator_id ===
@@ -524,7 +683,17 @@ export default class PollScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -556,13 +725,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: Dimensions.get('window').height * 0.04,
     marginBottom: Dimensions.get('window').height * 0.005,
-    marginLeft: Dimensions.get('window').width * 0.025,
+    marginLeft: Dimensions.get('window').width * 0.05,
     fontWeight: 'bold',
     color: '#5B4FFF',
   },
   generic: {
     fontSize: 12,
-    marginLeft: Dimensions.get('window').width * 0.025,
+    marginLeft: Dimensions.get('window').width * 0.05,
     color: '#8F8F8F',
   },
   answersGeneric: {
@@ -585,7 +754,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   line: {
     backgroundColor: '#5B4FFF',
@@ -616,7 +785,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',

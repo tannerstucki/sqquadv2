@@ -12,6 +12,8 @@ import {
   TextInput,
   Alert,
   Platform,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,12 +22,40 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreateThreadScreen extends React.Component {
-  static navigationOptions = {
-    title: 'New Message',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Message',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -35,10 +65,13 @@ export default class CreateThreadScreen extends React.Component {
       first_name: '',
       last_name: '',
       found_users: '',
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     var user_data_ref = firebase
       .database()
       .ref('users/' + firebase.auth().currentUser.uid);
@@ -88,6 +121,24 @@ export default class CreateThreadScreen extends React.Component {
       showUserMessage: true,
     });
   }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   chooseSquad(item) {
     const rootRef = firebase.database().ref();
@@ -154,12 +205,12 @@ export default class CreateThreadScreen extends React.Component {
       squad_id: 'null',
       squad_name: 'null',
       users: {
-        [UUID.v4()]: {
+        [firebase.auth().currentUser.uid]: {
           user_id: firebase.auth().currentUser.uid,
           name:
             this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
         },
-        [UUID.v4()]: {
+        [item.key]: {
           user_id: item.key,
           name: item.first_name + ' ' + item.last_name,
         },
@@ -173,13 +224,21 @@ export default class CreateThreadScreen extends React.Component {
           .child('users')
           .child(firebase.auth().currentUser.uid)
           .child('threads')
-          .push({ thread_id: snapshot.key });
+          .child(snapshot.key)
+          .set({
+            thread_id: snapshot.key,
+            unseen: 0,
+          });
 
         rootRef
           .child('users')
           .child(item.key)
           .child('threads')
-          .push({ thread_id: snapshot.key });
+          .child(snapshot.key)
+          .set({
+            thread_id: snapshot.key,
+            unseen: 0,
+          });
 
         firebase
           .database()
@@ -201,13 +260,13 @@ export default class CreateThreadScreen extends React.Component {
               _id: 'rIjWNJh2YuU0glyJbY9HgkeYwjf1',
               name: 'Virtual Manager',
             },
+          })
+          .then(function() {
+            NavigationService.navigate('ThreadScreen', {
+              threadName: item.first_name + ' ' + item.last_name,
+              thread_id: snapshot.key,
+            });
           });
-
-        NavigationService.navigate('ThreadScreen', {
-          curthread: null,
-          threadName: item.first_name + ' ' + item.last_name,
-          thread_id: snapshot.key,
-        });
       })
       .catch(function(error) {
         var errorCode = error.code;
@@ -259,26 +318,28 @@ export default class CreateThreadScreen extends React.Component {
       } else {
         var foundThread = false;
         snapshot.forEach(snapshot => {
-          threadsRef.child(snapshot.val().thread_id).on('value', snapshot => {
-            if (snapshot.val().squad_id === 'null') {
-              for (
-                let i = 0;
-                i < Object.keys(snapshot.val().users).length;
-                i++
-              ) {
-                if (
-                  Object.values(snapshot.val().users)[i].user_id === item.key
+          if (snapshot.key !== 'total_unseen') {
+            threadsRef.child(snapshot.val().thread_id).on('value', snapshot => {
+              if (snapshot.val().squad_id === 'null') {
+                for (
+                  let i = 0;
+                  i < Object.keys(snapshot.val().users).length;
+                  i++
                 ) {
-                  foundThread = true;
-                  NavigationService.navigate('ThreadScreen', {
-                    curthread: snapshot.val(),
-                    threadName: item.first_name + ' ' + item.last_name,
-                    thread_id: snapshot.key,
-                  });
+                  if (
+                    Object.values(snapshot.val().users)[i].user_id === item.key
+                  ) {
+                    foundThread = true;
+                    NavigationService.navigate('ThreadScreen', {
+                      curthread: snapshot.val(),
+                      threadName: item.first_name + ' ' + item.last_name,
+                      thread_id: snapshot.key,
+                    });
+                  }
                 }
               }
-            }
-          });
+            });
+          }
         });
         if (foundThread === false) {
           this.createThreadDecision(item);
@@ -456,7 +517,17 @@ export default class CreateThreadScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -482,7 +553,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   squadInfo: {
     fontSize: 20,
@@ -501,7 +572,7 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.2,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   user_input: {
     height: 40,
@@ -525,7 +596,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   search_fill: {
     marginTop: Dimensions.get('window').height * 0.1,

@@ -10,6 +10,8 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,11 +24,37 @@ export default class EventScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       title: navigation.getParam('eventName', 'Event'),
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
     };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -49,49 +77,112 @@ export default class EventScreen extends React.Component {
           status: 'initialize',
         },
       ],
+      timeOffset: 0,
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
-    const curevent = params.curevent;
-    const users = Object.entries(curevent.users);
-    var selected_user = '';
-    if (users.length === 1) {
-      selected_user = users[0];
-    } else {
-      selected_user = [
-        '0',
-        {
-          user_id: 'initialize',
-          user_name: 'initialize',
-          status: 'initialize',
-        },
-      ];
-    }
+    const event_id = params.event_id;
+    const oldcurevent = params.curevent;
+    var curevent = '';
 
-    this.setState({
-      curevent: curevent,
-      users: users,
-      selected_user: selected_user,
-      curdate: new Date(),
-    });
-
-    var data_ref = firebase
+    firebase
       .database()
-      .ref('users/' + firebase.auth().currentUser.uid);
-    data_ref.on('value', snapshot => {
-      this.setState({ curuser: snapshot.val() });
-    });
+      .ref('events/' + event_id)
+      .on('value', snapshot => {
+        var item = snapshot.val();
+        item.key = snapshot.key;
+        //get the unseen status of the current user
+        var users = Object.values(item.users);
+        var userIndex = users.findIndex(
+          obj => obj.user_id === firebase.auth().currentUser.uid
+        );
+        if (userIndex !== -1) {
+          item.unseen = users[userIndex].unseen;
+        } else {
+          item.unseen = null;
+        }
+        curevent = item;
+        if (curevent.comments === undefined) {
+          curevent.comments = 0;
+        }
 
-    if (curevent.squad_id !== 'null') {
-      var squad_ref = firebase.database().ref('squads/' + curevent.squad_id);
-      squad_ref.on('value', snapshot => {
-        this.setState({ cursquad: snapshot.val() });
+        var date = new Date();
+        var timeOffset = date.getTimezoneOffset();
+        var eventUsers = Object.entries(curevent.users);
+
+        if (curevent.unseen) {
+          firebase
+            .database()
+            .ref('users/' + firebase.auth().currentUser.uid + '/events')
+            .once('value', snapshot => {
+              var total_unseen = snapshot.val().total_unseen - 1;
+              if (total_unseen < 0) {
+                total_unseen = 0;
+              }
+              firebase
+                .database()
+                .ref('users/' + firebase.auth().currentUser.uid + '/events')
+                .child('total_unseen')
+                .set(total_unseen);
+            });
+          var eventUsersArray = Object.values(curevent.users);
+          var eventUserIndex = eventUsersArray.findIndex(
+            obj => obj.user_id === firebase.auth().currentUser.uid
+          );
+          eventUsersArray[eventUserIndex].unseen = false;
+          eventUsers = Object.entries(eventUsersArray);
+          firebase
+            .database()
+            .ref('events/' + curevent.key)
+            .child('users')
+            .set(eventUsersArray);
+        }
+
+        var selected_user = '';
+        if (eventUsers.length === 1) {
+          selected_user = eventUsers[0];
+        } else {
+          selected_user = [
+            '0',
+            {
+              user_id: 'initialize',
+              user_name: 'initialize',
+              status: 'initialize',
+            },
+          ];
+        }
+
+        this.setState({
+          curevent: curevent,
+          users: eventUsers,
+          selected_user: selected_user,
+          curdate: new Date(),
+          timeOffset: timeOffset,
+        });
+
+        var data_ref = firebase
+          .database()
+          .ref('users/' + firebase.auth().currentUser.uid);
+        data_ref.on('value', snapshot => {
+          this.setState({ curuser: snapshot.val() });
+        });
+
+        if (curevent.squad_id !== 'null') {
+          var squad_ref = firebase
+            .database()
+            .ref('squads/' + curevent.squad_id);
+          squad_ref.on('value', snapshot => {
+            this.setState({ cursquad: snapshot.val() });
+          });
+        }
+
+        this.setState({ loading: false });
       });
-    }
-
-    this.setState({ loading: false });
   }
 
   switchRsvpCard() {
@@ -180,7 +271,6 @@ export default class EventScreen extends React.Component {
         };
         const rootRef = firebase.database().ref();
         const eventRef = rootRef.child('events/' + this.state.curevent.key);
-        console.log(eventUpdateData);
         this.setState({ users: users });
 
         eventRef.update(eventUpdateData);
@@ -204,6 +294,32 @@ export default class EventScreen extends React.Component {
     }
   }
 
+  openComments() {
+    NavigationService.navigate('CommentScreen', {
+      parentName: 'Event Comments',
+      parent: this.state.curevent.key,
+      comment_type: 'events',
+    });
+  }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
+
   render() {
     return (
       <React.Fragment>
@@ -217,81 +333,56 @@ export default class EventScreen extends React.Component {
             this.state.showCheckInCard === false ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curevent.title}
-                  </Text>
                   <ScrollView
                     style={{
                       height: Dimensions.get('window').height * 0.45,
                       width: Dimensions.get('window').width * 0.7,
                       marginBottom: Dimensions.get('window').height * 0.025,
                     }}>
-                    <Text style={styles.detailsInfo}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}
+                      selectable={true}>
+                      {this.state.curevent.title}
+                    </Text>
+                    <Text style={styles.detailsInfo} selectable={true}>
                       {this.state.curevent.description}
                     </Text>
                     <View style={styles.line} />
                     <Text style={styles.generic}>Description</Text>
-                    {Moment(
-                      new Date(
-                        parseInt(this.state.curevent.startAt)
-                      ).toLocaleString('en-US', {
-                        timeZone: 'America/Los_Angeles',
-                      })
-                    )
+                    {Moment(this.state.curevent.startAt + this.state.timeOffset)
                       .format('hh:mm A')
                       .substring(0, 1) === '0' ? (
-                      <Text style={styles.detailsInfo}>
+                      <Text style={styles.detailsInfo} selectable={true}>
                         {Moment(
-                          new Date(
-                            parseInt(this.state.curevent.startAt)
-                          ).toLocaleString('en-US', {
-                            timeZone: 'America/Los_Angeles',
-                          })
+                          this.state.curevent.startAt + this.state.timeOffset
                         ).format('h:mm A on MM/DD/YYYY')}
                       </Text>
                     ) : (
-                      <Text style={styles.detailsInfo}>
+                      <Text style={styles.detailsInfo} selectable={true}>
                         {Moment(
-                          new Date(
-                            parseInt(this.state.curevent.startAt)
-                          ).toLocaleString('en-US', {
-                            timeZone: 'America/Los_Angeles',
-                          })
+                          this.state.curevent.startAt + this.state.timeOffset
                         ).format('hh:mm A on MM/DD/YYYY')}
                       </Text>
                     )}
                     <View style={styles.line} />
                     <Text style={styles.generic}>Starts At</Text>
-                    {Moment(
-                      new Date(
-                        parseInt(this.state.curevent.endAt)
-                      ).toLocaleString('en-US', {
-                        timeZone: 'America/Los_Angeles',
-                      })
-                    )
+                    {Moment(this.state.curevent.endAt + this.state.timeOffset)
                       .format('hh:mm A')
                       .substring(0, 1) === '0' ? (
-                      <Text style={styles.detailsInfo}>
+                      <Text style={styles.detailsInfo} selectable={true}>
                         {Moment(
-                          new Date(
-                            parseInt(this.state.curevent.endAt)
-                          ).toLocaleString('en-US', {
-                            timeZone: 'America/Los_Angeles',
-                          })
+                          this.state.curevent.endAt + this.state.timeOffset
                         ).format('h:mm A on MM/DD/YYYY')}
                       </Text>
                     ) : (
-                      <Text style={styles.detailsInfo}>
+                      <Text style={styles.detailsInfo} selectable={true}>
                         {Moment(
-                          new Date(
-                            parseInt(this.state.curevent.endAt)
-                          ).toLocaleString('en-US', {
-                            timeZone: 'America/Los_Angeles',
-                          })
+                          this.state.curevent.endAt + this.state.timeOffset
                         ).format('hh:mm A on MM/DD/YYYY')}
                       </Text>
                     )}
@@ -309,6 +400,19 @@ export default class EventScreen extends React.Component {
                         </Text>
                         <View style={styles.line} />
                         <Text style={styles.generic}>Squad</Text>
+                        <TouchableOpacity
+                          onPress={this.openComments.bind(this)}>
+                          {this.state.curevent.comments !== 0 ? (
+                            <Text style={styles.detailsInfo}>
+                              Click to comment ({this.state.curevent.comments})
+                            </Text>
+                          ) : (
+                            <Text style={styles.detailsInfo}>
+                              Click to leave the first comment
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                        <View style={styles.line} />
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
@@ -368,20 +472,22 @@ export default class EventScreen extends React.Component {
             {this.state.showRsvpCard === true ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    {this.state.curevent.title}
-                  </Text>
-                  <View style={styles.line} />
                   <ScrollView
                     style={{
                       height: Dimensions.get('window').height * 0.45,
                       width: Dimensions.get('window').width * 0.7,
                       marginBottom: Dimensions.get('window').height * 0.025,
                     }}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}>
+                      {this.state.curevent.title}
+                    </Text>
+                    <View style={styles.line} />
                     {JSON.stringify(this.state.users).includes(
                       firebase.auth().currentUser.uid
                     ) ? (
@@ -467,20 +573,22 @@ export default class EventScreen extends React.Component {
             {this.state.showCheckInCard === true ? (
               <React.Fragment>
                 <Card style={styles.resultsCard}>
-                  <Text
-                    style={[
-                      styles.info,
-                      { marginBottom: Dimensions.get('window').height * 0.01 },
-                    ]}>
-                    Checked in for {this.state.curevent.title}
-                  </Text>
-                  <View style={styles.line} />
                   <ScrollView
                     style={{
                       height: Dimensions.get('window').height * 0.45,
                       width: Dimensions.get('window').width * 0.7,
                       marginBottom: Dimensions.get('window').height * 0.025,
                     }}>
+                    <Text
+                      style={[
+                        styles.info,
+                        {
+                          marginBottom: Dimensions.get('window').height * 0.01,
+                        },
+                      ]}>
+                      Checked in for {this.state.curevent.title}
+                    </Text>
+                    <View style={styles.line} />
                     <FlatList
                       style={{
                         padding: 10,
@@ -517,7 +625,17 @@ export default class EventScreen extends React.Component {
             ) : null}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }

@@ -11,6 +11,8 @@ import {
   TextInput,
   FlatList,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { Calendar } from 'react-native-calendars';
@@ -21,12 +23,40 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreateEventScreen extends React.Component {
-  static navigationOptions = {
-    title: 'New Event',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Event',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -44,6 +74,7 @@ export default class CreateEventScreen extends React.Component {
       assigneeCardShow: false,
       calendarCardShow: false,
       timeCardShow: false,
+      showDrawer: false,
       curassignee: '',
       originalDateSelected: '',
       dateSelected: '',
@@ -123,6 +154,7 @@ export default class CreateEventScreen extends React.Component {
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
     const { params } = this.props.navigation.state;
     const squads = params.squads;
 
@@ -236,6 +268,7 @@ export default class CreateEventScreen extends React.Component {
         user_id: curassignee[1].user_id,
         user_name: curassignee[1].name,
         rsvp: 'Undecided',
+        unseen: true,
       });
     }
     this.setState({
@@ -265,6 +298,7 @@ export default class CreateEventScreen extends React.Component {
           user_id: curassignee[1].user_id,
           user_name: curassignee[1].name,
           rsvp: 'Undecided',
+          unseen: true,
         });
       }
     }
@@ -292,6 +326,7 @@ export default class CreateEventScreen extends React.Component {
       user_name:
         this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
       rsvp: 'Undecided',
+      unseen: true,
     });
 
     var event_post = firebase
@@ -313,13 +348,35 @@ export default class CreateEventScreen extends React.Component {
         var event_id = snapshot.key;
 
         for (let i = 0; i < assignees.length; i++) {
+          //Add scheduler to user list
           firebase
             .database()
-            .ref('users/' + assignees[i].user_id)
-            .child('events')
-            .push({
+            .ref('users/' + assignees[i].user_id + '/events')
+            .child(event_id)
+            .set({
               event_id: event_id,
-            });
+              startAt: new Date(this.state.startDateString).getTime(),
+            })
+            .then(
+              //Increase unseen events
+              firebase
+                .database()
+                .ref('users/' + assignees[i].user_id + '/events')
+                .once('value', snapshot => {
+                  var total_unseen = 1;
+                  if (
+                    snapshot.val().total_unseen !== undefined &&
+                    snapshot.val().total_unseen !== null
+                  ) {
+                    total_unseen = snapshot.val().total_unseen + 1;
+                  }
+                  firebase
+                    .database()
+                    .ref('users/' + assignees[i].user_id + '/events')
+                    .child('total_unseen')
+                    .set(total_unseen);
+                })
+            );
         }
 
         if (
@@ -381,10 +438,9 @@ export default class CreateEventScreen extends React.Component {
             }
           }
         }*/
+        NavigationService.navigate('MyEventsScreen');
+        alert('Your event has been created!');
       });
-
-    NavigationService.navigate('MyEventsScreen');
-    alert('Your event has been created!');
   }
 
   toggleCalendar(startOrEnd) {
@@ -428,6 +484,24 @@ export default class CreateEventScreen extends React.Component {
       });
     }
   }
+  
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   onTimePress(item) {
     if (this.state.timeselection === 'hours') {
@@ -970,7 +1044,17 @@ export default class CreateEventScreen extends React.Component {
             )}
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }

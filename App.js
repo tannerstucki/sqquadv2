@@ -35,6 +35,8 @@ import CreateEventScreen from './screens/Events/CreateEventScreen';
 import MySchedulersScreen from './screens/Schedulers/MySchedulersScreen';
 import SchedulerScreen from './screens/Schedulers/SchedulerScreen';
 import CreateSchedulerScreen from './screens/Schedulers/CreateSchedulerScreen';
+import CommentScreen from './screens/Threads/CommentScreen';
+import MediaChatScreen from './screens/Threads/MediaChatScreen';
 
 const RootStackNavigator = createStackNavigator({
   LoadingScreen,
@@ -58,6 +60,8 @@ const RootStackNavigator = createStackNavigator({
   MySchedulersScreen,
   SchedulerScreen,
   CreateSchedulerScreen,
+  CommentScreen,
+  MediaChatScreen,
   ThreadScreen: {
     screen: ThreadScreen,
     navigationOptions({ navigation }) {

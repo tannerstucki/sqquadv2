@@ -10,6 +10,9 @@ import {
   StyleSheet,
   TextInput,
   FlatList,
+  ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,12 +21,40 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreatePollScreen extends React.Component {
-  static navigationOptions = {
-    title: 'New Poll',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Poll',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       loading: true,
@@ -35,11 +66,14 @@ export default class CreatePollScreen extends React.Component {
       selectedSquad: { name: 'Choose Squad' },
       switchCardShow: false,
       responseCardShow: false,
+      showDrawer: false,
       curresponse: '',
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
     const squads = params.squads;
 
@@ -68,6 +102,24 @@ export default class CreatePollScreen extends React.Component {
       this.setState({ poll_type: 'Single Response' });
     }
   }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   switchSelectedSquad() {
     if (this.state.noSquads === true) {
@@ -113,11 +165,16 @@ export default class CreatePollScreen extends React.Component {
 
   onCreatePress() {
     var users = [];
-    for (let i = 0; i < Object.values(this.state.selectedSquad.users).length; i++){
+    for (
+      let i = 0;
+      i < Object.values(this.state.selectedSquad.users).length;
+      i++
+    ) {
       users.push({
         user_id: Object.values(this.state.selectedSquad.users)[i].user_id,
         user_name: Object.values(this.state.selectedSquad.users)[i].name,
         responded: false,
+        unseen: true,
       });
     }
 
@@ -153,15 +210,35 @@ export default class CreatePollScreen extends React.Component {
           .child('users')
           .on('value', snapshot => {
             snapshot.forEach(snapshot => {
+              var user_id = snapshot.val().user_id;
+              //Add polls to user list
               firebase
                 .database()
-                .ref('users/' + snapshot.val().user_id)
-                .child('polls')
-                .push({
+                .ref('users/' + user_id + '/polls')
+                .child(poll_id)
+                .set({
                   poll_id: poll_id,
-                  responded: false,
+                });
+
+              //Increase unseen polls
+              firebase
+                .database()
+                .ref('users/' + user_id + '/polls')
+                .once('value', snapshot => {
+                  var total_unseen = 1;
+                  if (snapshot.val().total_unseen !== undefined) {
+                    total_unseen = snapshot.val().total_unseen + 1;
+                  }
+                  firebase
+                    .database()
+                    .ref('users/' + user_id + '/polls')
+                    .child('total_unseen')
+                    .set(total_unseen);
                 });
             });
+
+            NavigationService.navigate('MyPollsScreen');
+            alert('Your poll has been created!');
           });
 
         firebase
@@ -192,9 +269,6 @@ export default class CreatePollScreen extends React.Component {
               });
           });
       });
-
-    NavigationService.navigate('MyPollsScreen');
-    alert('Your poll has been created!');
   }
 
   render() {
@@ -219,180 +293,196 @@ export default class CreatePollScreen extends React.Component {
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 1 }}>
           <View style={styles.fill}>
-            {this.state.loading ? (
-              <React.Fragment>
-                <Text style={styles.info}>Loading</Text>
-                <ActivityIndicator size="large" color="white" />
-              </React.Fragment>
-            ) : (
-              <React.Fragment>
-                {this.state.noSquads !== true &&
-                this.state.switchCardShow === false &&
-                this.state.responseCardShow === false ? (
-                  <React.Fragment>
-                    <TextInput
-                      style={styles.question_input}
-                      placeholder="Question"
-                      placeholderTextColor="#F4F4F4"
-                          selectionColor='white'
-                      multiline
-                      blurOnSubmit
-                      onChangeText={question => this.setState({ question })}
-                      value={this.state.question}
-                    />
-                    <TouchableOpacity onPress={this.togglePollType.bind(this)}>
-                      <Text style={styles.info}>{this.state.poll_type}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.line} />
-                    <TouchableOpacity
-                      onPress={this.switchSelectedSquad.bind(this)}>
-                      <Text style={styles.info}>
-                        {this.state.selectedSquad.name}
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={styles.line} />
-                    <Text style={[styles.info, { fontWeight: 'bold' }]}>
-                      Responses:
-                    </Text>
-                    {this.state.responses.length === 0 ? (
-                      <Text style={styles.noSquads}>
-                        Add responses with the button below!
-                      </Text>
-                    ) : null}
-                    <FlatList
-                      style={{ padding: 10 }}
-                      data={this.state.responses}
-                      keyExtractor={(item, index) => index.toString()}
-                      renderItem={({ item }) => (
-                        <React.Fragment>
-                          <View style={{ flexDirection: 'row' }}>
-                            <Text style={[styles.info]}>{item.text}</Text>
-                          </View>
-                          <View style={styles.line} />
-                        </React.Fragment>
-                      )}
-                    />
-                    <View style={styles.buttonRow}>
-                      <TouchableOpacity
-                        onPress={this.onCreatePress.bind(this)}
-                        disabled={isEnabled}>
-                        <View style={styles.customButton}>
-                          <Text
-                            style={[styles.buttonText, { color: text_color }]}>
-                            Create Poll
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={this.toggleResponseCard.bind(this)}>
-                        <View style={styles.customButton}>
-                          <Text style={styles.buttonText}>Add Response</Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  </React.Fragment>
-                ) : null}
-                {this.state.noSquads === true ? (
-                  <React.Fragment>
-                    <Text style={styles.noSquads}>
-                      Sorry, you have no squads.
-                    </Text>
-                    <Text style={styles.noSquads}>
-                      Polls must be associated with a squad. Create a squad and
-                      start sending polls!
-                    </Text>
-                  </React.Fragment>
-                ) : null}
-                {this.state.switchCardShow === true ? (
-                  <Card style={[styles.resultsCard, {}]}>
-                    <FlatList
-                      style={{ padding: 10 }}
-                      data={this.state.squads}
-                      keyExtractor={(item, index) => index.toString()}
-                      renderItem={({ item }) => (
-                        <React.Fragment>
-                          <TouchableOpacity
-                            onPress={this.chooseSquad.bind(this, item)}>
-                            <Text style={styles.card_info}>{item.name}</Text>
-                          </TouchableOpacity>
-                          <View style={styles.card_line} />
-                        </React.Fragment>
-                      )}
-                    />
-                  </Card>
-                ) : null}
-                {this.state.responseCardShow === true ? (
-                  <React.Fragment>
-                    <Card
-                      style={[
-                        styles.resultsCard,
-                        {
-                          marginLeft: Dimensions.get('window').width * 0.05,
-                          marginTop: Dimensions.get('window').height * 0.125,
-                        },
-                      ]}>
+            <ScrollView>
+              {this.state.loading ? (
+                <React.Fragment>
+                  <Text style={styles.info}>Loading</Text>
+                  <ActivityIndicator size="large" color="white" />
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  {this.state.noSquads !== true &&
+                  this.state.switchCardShow === false &&
+                  this.state.responseCardShow === false ? (
+                    <React.Fragment>
                       <TextInput
-                        style={styles.response_input}
-                        placeholder="Response"
-                        placeholderTextColor="#B8B8B8"
+                        style={styles.question_input}
+                        placeholder="Question"
+                        placeholderTextColor="#F4F4F4"
+                        selectionColor="white"
                         multiline
                         blurOnSubmit
-                        onChangeText={curresponse =>
-                          this.setState({ curresponse })
-                        }
-                        value={this.state.curresponse}
+                        onChangeText={question => this.setState({ question })}
+                        value={this.state.question}
+                      />
+                      <TouchableOpacity
+                        onPress={this.togglePollType.bind(this)}>
+                        <Text style={styles.info}>{this.state.poll_type}</Text>
+                      </TouchableOpacity>
+                      <View style={styles.line} />
+                      <TouchableOpacity
+                        onPress={this.switchSelectedSquad.bind(this)}>
+                        <Text style={styles.info}>
+                          {this.state.selectedSquad.name}
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={styles.line} />
+                      <Text style={[styles.info, { fontWeight: 'bold' }]}>
+                        Responses:
+                      </Text>
+                      {this.state.responses.length === 0 ? (
+                        <Text style={styles.noSquads}>
+                          Add responses with the button below!
+                        </Text>
+                      ) : null}
+                      <FlatList
+                        style={{ padding: 10 }}
+                        data={this.state.responses}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                          <React.Fragment>
+                            <View style={{ flexDirection: 'row' }}>
+                              <Text style={[styles.info]}>{item.text}</Text>
+                            </View>
+                            <View style={styles.line} />
+                          </React.Fragment>
+                        )}
                       />
                       <View style={styles.buttonRow}>
-                        <View
-                          style={{
-                            width: Dimensions.get('window').width * 0.2,
-                            textAlign: 'center',
-                          }}>
-                          <TouchableOpacity
-                            onPress={this.addResponse.bind(this)}
-                            disabled={isOkEnabled}>
+                        <TouchableOpacity
+                          onPress={this.onCreatePress.bind(this)}
+                          disabled={isEnabled}>
+                          <View style={styles.customButton}>
                             <Text
                               style={[
-                                styles.info,
-                                {
-                                  color: ok_text_color,
-                                  paddingLeft: 0,
-                                  fontWeight: 'bold',
-                                },
+                                styles.buttonText,
+                                { color: text_color },
                               ]}>
-                              Ok
+                              Create Poll
                             </Text>
-                          </TouchableOpacity>
-                        </View>
-                        <View
-                          style={{
-                            width: Dimensions.get('window').width * 0.2,
-                            textAlign: 'center',
-                          }}>
-                          <TouchableOpacity
-                            onPress={this.toggleResponseCard.bind(this)}>
-                            <Text
-                              style={[
-                                styles.info,
-                                {
-                                  color: '#5B4FFF',
-                                  paddingLeft: 0,
-                                  fontWeight: 'bold',
-                                },
-                              ]}>
-                              Cancel
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={this.toggleResponseCard.bind(this)}>
+                          <View style={styles.customButton}>
+                            <Text style={styles.buttonText}>Add Response</Text>
+                          </View>
+                        </TouchableOpacity>
                       </View>
+                    </React.Fragment>
+                  ) : null}
+                  {this.state.noSquads === true ? (
+                    <React.Fragment>
+                      <Text style={styles.noSquads}>
+                        Sorry, you have no squads.
+                      </Text>
+                      <Text style={styles.noSquads}>
+                        Polls must be associated with a squad. Create a squad
+                        and start sending polls!
+                      </Text>
+                    </React.Fragment>
+                  ) : null}
+                  {this.state.switchCardShow === true ? (
+                    <Card style={[styles.resultsCard, {}]}>
+                      <FlatList
+                        style={{ padding: 10 }}
+                        data={this.state.squads}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                          <React.Fragment>
+                            <TouchableOpacity
+                              onPress={this.chooseSquad.bind(this, item)}>
+                              <Text style={styles.card_info}>{item.name}</Text>
+                            </TouchableOpacity>
+                            <View style={styles.card_line} />
+                          </React.Fragment>
+                        )}
+                      />
                     </Card>
-                  </React.Fragment>
-                ) : null}
-              </React.Fragment>
-            )}
+                  ) : null}
+                  {this.state.responseCardShow === true ? (
+                    <React.Fragment>
+                      <Card
+                        style={[
+                          styles.resultsCard,
+                          {
+                            marginLeft: Dimensions.get('window').width * 0.05,
+                            marginTop: Dimensions.get('window').height * 0.125,
+                          },
+                        ]}>
+                        <TextInput
+                          style={styles.response_input}
+                          placeholder="Response"
+                          placeholderTextColor="#B8B8B8"
+                          multiline
+                          blurOnSubmit
+                          onChangeText={curresponse =>
+                            this.setState({ curresponse })
+                          }
+                          value={this.state.curresponse}
+                        />
+                        <View style={styles.buttonRow}>
+                          <View
+                            style={{
+                              width: Dimensions.get('window').width * 0.2,
+                              textAlign: 'center',
+                            }}>
+                            <TouchableOpacity
+                              onPress={this.addResponse.bind(this)}
+                              disabled={isOkEnabled}>
+                              <Text
+                                style={[
+                                  styles.info,
+                                  {
+                                    color: ok_text_color,
+                                    paddingLeft: 0,
+                                    fontWeight: 'bold',
+                                  },
+                                ]}>
+                                Ok
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View
+                            style={{
+                              width: Dimensions.get('window').width * 0.2,
+                              textAlign: 'center',
+                            }}>
+                            <TouchableOpacity
+                              onPress={this.toggleResponseCard.bind(this)}>
+                              <Text
+                                style={[
+                                  styles.info,
+                                  {
+                                    color: '#5B4FFF',
+                                    paddingLeft: 0,
+                                    fontWeight: 'bold',
+                                  },
+                                ]}>
+                                Cancel
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </Card>
+                    </React.Fragment>
+                  ) : null}
+                </React.Fragment>
+              )}
+            </ScrollView>
           </View>
         </LinearGradient>
-        <BottomMenu curuser={this.state.curuser} />
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -471,7 +561,7 @@ const styles = StyleSheet.create({
     margin: Dimensions.get('window').height * 0.15,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   customButton: {
     backgroundColor: 'black',
@@ -485,7 +575,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonRow: {
     flexDirection: 'row',

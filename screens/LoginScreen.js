@@ -78,6 +78,11 @@ class LoginScreen extends React.Component {
           <TouchableOpacity onPress={this.openRegister.bind(this)}>
             <Text style={styles.linkText}>Don't have an account yet?</Text>
           </TouchableOpacity>
+          <View
+            style={{
+              marginBottom: Dimensions.get('window').height * 0.55,
+            }}
+          />
         </ScrollView>
       </LinearGradient>
     );
@@ -99,6 +104,9 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').height * 0.2,
     alignSelf: 'center',
     margin: 20,
+    shadowOffset: { width: 5, height: 5 },
+    shadowColor: 'black',
+    shadowOpacity: 0.25,
   },
   user_input: {
     height: 40,

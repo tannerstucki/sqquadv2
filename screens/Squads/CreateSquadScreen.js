@@ -13,22 +13,53 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Easing,
+  Animated,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { createStackNavigator } from 'react-navigation';
 import { LinearGradient } from 'expo-linear-gradient';
+import BottomMenu from '../../components/BottomMenu';
 import { Card } from 'react-native-paper';
 import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 import HomeScreen from '.././HomeScreen';
 
 export default class CreateSquadScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Create New Squad',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'New Squad',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       id: '',
       name: '',
@@ -37,10 +68,13 @@ export default class CreateSquadScreen extends React.Component {
       organizer_id: '',
       loading: true,
       curuser: '',
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     var data_ref = firebase
       .database()
       .ref()
@@ -66,13 +100,15 @@ export default class CreateSquadScreen extends React.Component {
         description: this.state.description,
         organizer_id: firebase.auth().currentUser.uid,
         zip: this.state.zip.trim(),
+        status: 'active',
       })
       .then(snapshot => {
         firebase
           .database()
           .ref('users/' + firebase.auth().currentUser.uid)
           .child('squads')
-          .push({
+          .child(snapshot.key)
+          .set({
             squad_id: snapshot.key,
           });
 
@@ -80,12 +116,15 @@ export default class CreateSquadScreen extends React.Component {
           .database()
           .ref('squads/' + snapshot.key)
           .child('users')
-          .push({
+          .child(firebase.auth().currentUser.uid)
+          .set({
             user_id: firebase.auth().currentUser.uid,
             name:
               this.state.curuser.first_name +
               ' ' +
               this.state.curuser.last_name,
+            status: 'active',
+            points: 0,
           });
 
         firebase
@@ -100,8 +139,10 @@ export default class CreateSquadScreen extends React.Component {
               .database()
               .ref('users/' + firebase.auth().currentUser.uid)
               .child('threads')
-              .push({
+              .child(snapshot.key)
+              .set({
                 thread_id: snapshot.key,
+                unseen: 0,
               });
 
             firebase
@@ -136,6 +177,24 @@ export default class CreateSquadScreen extends React.Component {
       });
   }
 
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
+
   render() {
     var isEnabled = 'false';
     var text_color = 'grey';
@@ -149,63 +208,76 @@ export default class CreateSquadScreen extends React.Component {
     }
 
     return (
-      <LinearGradient
-        colors={['#5B4FFF', '#D616CF']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 1 }}>
-        <View style={styles.fill}>
-          {this.state.loading ? (
-            <React.Fragment>
-              <Text style={styles.info}>Loading</Text>
-              <ActivityIndicator size="large" color="white" />
-            </React.Fragment>
-          ) : (
-            <React.Fragment>
-              <TextInput
-                style={styles.user_input}
-                placeholder="Name"
-                onChangeText={name => this.setState({ name })}
-                value={this.state.name}
-              />
-              <TextInput
-                style={styles.user_input}
-                placeholder="Description"
-                onChangeText={description => this.setState({ description })}
-                value={this.state.description}
-              />
-              <TextInput
-                style={styles.user_input}
-                placeholder="Zip Code"
-                onChangeText={zip => this.setState({ zip })}
-                value={this.state.zip}
-              />
-              <TouchableOpacity
-                onPress={this.onCreatePress.bind(this)}
-                disabled={isEnabled}>
-                <View style={styles.customButton}>
-                  <Text
-                    style={{
-                      color: text_color,
-                      fontSize: 18,
-                      padding: 5,
-                      fontWeight: 'bold',
-                      textAlign: 'center',
-                    }}>
-                    Create Squad
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </React.Fragment>
-          )}
-        </View>
-      </LinearGradient>
+      <React.Fragment>
+        <LinearGradient
+          colors={['#5B4FFF', '#D616CF']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 1 }}>
+          <View style={styles.fill}>
+            {this.state.loading ? (
+              <React.Fragment>
+                <Text style={styles.info}>Loading</Text>
+                <ActivityIndicator size="large" color="white" />
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <TextInput
+                  style={styles.user_input}
+                  placeholder="Name"
+                  onChangeText={name => this.setState({ name })}
+                  value={this.state.name}
+                />
+                <TextInput
+                  style={styles.user_input}
+                  placeholder="Description"
+                  onChangeText={description => this.setState({ description })}
+                  value={this.state.description}
+                />
+                <TextInput
+                  style={styles.user_input}
+                  placeholder="Zip Code"
+                  onChangeText={zip => this.setState({ zip })}
+                  value={this.state.zip}
+                />
+                <TouchableOpacity
+                  onPress={this.onCreatePress.bind(this)}
+                  disabled={isEnabled}>
+                  <View style={styles.customButton}>
+                    <Text
+                      style={{
+                        color: text_color,
+                        fontSize: 18,
+                        padding: 5,
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                      }}>
+                      Create Squad
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </React.Fragment>
+            )}
+          </View>
+        </LinearGradient>
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
+      </React.Fragment>
     );
   }
 }
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height,
+    height: Dimensions.get('window').height * .7,
     marginTop: Dimensions.get('window').height * 0.1,
   },
   user_input: {
@@ -225,11 +297,11 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height * 0.075,
     borderRadius: 15,
     justifyContent: 'center',
-    marginTop: Dimensions.get('window').height * 0.1,
-    marginBottom: Dimensions.get('window').height * 0.1,
+    marginTop: Dimensions.get('window').height * 0.34,
+    //marginBottom: Dimensions.get('window').height * 0,
     alignSelf: 'center',
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
 });

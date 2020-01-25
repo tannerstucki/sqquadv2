@@ -22,7 +22,6 @@ import {
   Platform,
   Easing,
   Animated,
-  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import NavigationService from '../../navigation/NavigationService';
@@ -347,7 +346,6 @@ export default class ThreadScreen extends React.Component {
 
   toggleDrawer = () => {
     if (this.state.showDrawer === false) {
-      Keyboard.dismiss();
       this.setState({
         showDrawer: true,
       });
@@ -370,12 +368,6 @@ export default class ThreadScreen extends React.Component {
 
   renderActions(props) {
     return <Actions {...props} />;
-  }
-
-  openMediaChat(){
-      NavigationService.navigate('MediaChatScreen', {
-        thread_id: '-Lz1FikVqJ93yUSUC1j2',
-      });
   }
 
   /*renderInputToolbar(props) {
@@ -431,7 +423,6 @@ export default class ThreadScreen extends React.Component {
               }}
               renderDay={this.renderDay}
               renderActions={this.renderActions}
-              onPressActionButton={this.openMediaChat.bind(this)}
               //renderInputToolbar={this.renderInputToolbar}
             />
           </View>

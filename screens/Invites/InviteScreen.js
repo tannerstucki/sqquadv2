@@ -10,6 +10,8 @@ import {
   Alert,
   Dimensions,
   ScrollView,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,22 +20,65 @@ import { default as UUID } from 'uuid';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class InviteScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Invite Info',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'Invite Info',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       sender: '',
       squad: '',
       curuser: '',
+      showDrawer: false,
     };
   }
 
   componentWillMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+    
     const { params } = this.props.navigation.state;
-    const curinvite = params.curinvite;
+    const invite_id = params.invite_id;
+    var curinvite = '';
+
+    firebase
+      .database()
+      .ref()
+      .child('invites')
+      .child(invite_id)
+      .on('value', snapshot => {
+        curinvite = snapshot.val();
+        curinvite.key = snapshot.key;
+        this.setState({ curinvite: curinvite });
+      });
 
     var data_ref = firebase
       .database()
@@ -43,6 +88,29 @@ export default class InviteScreen extends React.Component {
     data_ref.on('value', snapshot => {
       this.setState({ curuser: snapshot.val() });
     });
+
+    if (curinvite.unseen) {
+      firebase
+        .database()
+        .ref('users/' + firebase.auth().currentUser.uid)
+        .once('value', snapshot => {
+          var invites_unseen = snapshot.val().invites_unseen - 1;
+          if (invites_unseen < 0) {
+            invites_unseen = 0;
+          }
+          firebase
+            .database()
+            .ref('users/' + firebase.auth().currentUser.uid)
+            .child('invites_unseen')
+            .set(invites_unseen);
+        });
+
+      firebase
+        .database()
+        .ref('invites/' + invite_id)
+        .child('unseen')
+        .set(false);
+    }
 
     var squad_ref = firebase
       .database()
@@ -87,6 +155,7 @@ export default class InviteScreen extends React.Component {
       acceptor_email: curinvite.acceptor_email,
       status: 'accepted',
       sender_id: curinvite.sender_id,
+      unseen: false,
     };
 
     inviteRef.update(updateData);
@@ -118,18 +187,24 @@ export default class InviteScreen extends React.Component {
         .equalTo(curinvite.squad_id)
         .on('value', snapshot => {
           curThread = snapshot.val();
-          threadRef.push({ thread_id: Object.keys(curThread)[0] });
+          threadRef.child(Object.keys(curThread)[0]).set({
+            thread_id: Object.keys(curThread)[0],
+            unseen: 0,
+          });
         });
-      squadRef.push({ squad_id: curinvite.squad_id });
+      squadRef.child(curinvite.squad_id).set({ squad_id: curinvite.squad_id });
 
       firebase
         .database()
         .ref('squads/' + curinvite.squad_id)
         .child('users')
-        .push({
+        .child(firebase.auth().currentUser.uid)
+        .set({
           user_id: firebase.auth().currentUser.uid,
           name:
             this.state.curuser.first_name + ' ' + this.state.curuser.last_name,
+          status: 'active',
+          points: 0,
         });
 
       alert('You joined a new squad!');
@@ -147,6 +222,7 @@ export default class InviteScreen extends React.Component {
       acceptor_email: curinvite.acceptor_email,
       status: 'declined',
       sender_id: curinvite.sender_id,
+      unseen: false,
     };
 
     var updates = {};
@@ -160,6 +236,24 @@ export default class InviteScreen extends React.Component {
     alert('Invite declined.');
     NavigationService.navigate('MenuScreen');
   }
+  
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   render() {
     const { params } = this.props.navigation.state;
@@ -172,7 +266,7 @@ export default class InviteScreen extends React.Component {
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 1 }}>
           <ScrollView style={styles.fill}>
-            <Text style={styles.info}>{curinvite.squad_name}</Text>
+            <Text style={styles.info}>{this.state.curinvite.squad_name}</Text>
             <View style={styles.line} />
             <Text style={styles.generic}>Name</Text>
             <Text style={styles.info}>{this.state.squad.description}</Text>
@@ -189,18 +283,20 @@ export default class InviteScreen extends React.Component {
             </TouchableOpacity>
             <View style={styles.line} />
             <Text style={styles.generic}>Inviter</Text>
-            <Text style={styles.info}>{curinvite.status}</Text>
+            <Text style={styles.info}>{this.state.curinvite.status}</Text>
             <View style={styles.line} />
-            <Text style={styles.generic}>Status</Text>
+            <Text style={[styles.generic]}>Status</Text>
           </ScrollView>
-          {curinvite.status == 'new' ? (
+          {this.state.curinvite.status == 'new' ? (
             <View style={styles.buttonRow}>
-              <TouchableOpacity onPress={this.accept.bind(this, curinvite)}>
+              <TouchableOpacity
+                onPress={this.accept.bind(this, this.state.curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Accept</Text>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity onPress={this.decline.bind(this, curinvite)}>
+              <TouchableOpacity
+                onPress={this.decline.bind(this, this.state.curinvite)}>
                 <View style={styles.customButton}>
                   <Text style={styles.buttonText}>Decline</Text>
                 </View>
@@ -210,6 +306,17 @@ export default class InviteScreen extends React.Component {
             <View style={styles.empty} />
           )}
         </LinearGradient>
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -217,7 +324,7 @@ export default class InviteScreen extends React.Component {
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height * 0.77,
+    height: Dimensions.get('window').height * 0.62,
     alignItems: 'left',
     justifyContent: 'left',
   },
@@ -252,11 +359,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Dimensions.get('window').height * 0.1,
+    marginBottom: Dimensions.get('window').height * 0.04,
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   buttonText: {
     color: 'white',
@@ -269,5 +376,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignContent: 'center',
     alignSelf: 'center',
+    marginTop: Dimensions.get('window').height * .06,
   },
 });

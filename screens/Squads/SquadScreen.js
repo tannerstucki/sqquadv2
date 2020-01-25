@@ -12,6 +12,8 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Easing,
+  Animated,
 } from 'react-native';
 import BottomMenu from '../../components/BottomMenu';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,22 +21,51 @@ import { createStackNavigator } from 'react-navigation';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class SquadScreen extends React.Component {
-  static navigationOptions({ navigation }) {
+  static navigationOptions = ({ navigation }) => {
     return {
       title: 'Squad Info',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
     };
-  }
+  };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       cursquad: '',
       squadOrganizer: '',
       loading: true,
+      showDrawer: false,
     };
   }
 
   componentDidMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
     const cursquad = params.cursquad;
     this.setState({ cursquad: cursquad });
@@ -60,6 +91,24 @@ export default class SquadScreen extends React.Component {
       cursquad: this.state.cursquad,
     });
   }
+  
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   openSquadBoard() {
     firebase
@@ -131,6 +180,17 @@ export default class SquadScreen extends React.Component {
           </View>
           {/*Add squad options like invite friend, leave group, etc.*/}
         </LinearGradient>
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
       </React.Fragment>
     );
   }
@@ -138,7 +198,7 @@ export default class SquadScreen extends React.Component {
 
 const styles = StyleSheet.create({
   fill: {
-    height: Dimensions.get('window').height * 0.77,
+    height: Dimensions.get('window').height * 0.66,
     alignItems: 'left',
     justifyContent: 'left',
   },
@@ -170,7 +230,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Dimensions.get('window').height * 0.1,
+    marginBottom: Dimensions.get('window').height * 0.05,
+    marginTop: Dimensions.get('window').height * 0.01,
     marginHorizontal: Dimensions.get('window').width * 0.05,
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',

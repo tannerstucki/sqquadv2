@@ -14,21 +14,52 @@ import {
   Picker,
   FlatList,
   Dimensions,
+  Easing,
+  Animated,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { createStackNavigator } from 'react-navigation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from 'react-native-paper';
+import BottomMenu from '../../components/BottomMenu';
 import HomeScreen from '.././HomeScreen';
 import NavigationService from '../../navigation/NavigationService';
 
 export default class CreateInviteScreen extends React.Component {
-  static navigationOptions = {
-    title: 'Invite A Friend',
+  static navigationOptions = ({ navigation }) => {
+    return {
+      title: 'Invite a Friend',
+      headerStyle: {
+        backgroundColor: 'black',
+        shadowOffset: { width: 2, height: 2 },
+        shadowColor: 'black',
+        shadowOpacity: 0.75,
+        borderBottomWidth: 0,
+      },
+      headerTitleStyle: {
+        color: 'white',
+      },
+      headerRight: () => (
+        <TouchableOpacity onPress={navigation.getParam('toggleDrawer')}>
+          <Image
+            style={{
+              height: 30,
+              width: 30,
+              marginRight: Dimensions.get('window').width * 0.05,
+            }}
+            source={require('assets/icons/blue_menu.png')}
+          />
+        </TouchableOpacity>
+      ),
+    };
   };
 
   constructor(props) {
     super(props);
+    this.moveAnimation = new Animated.ValueXY({
+      x: Dimensions.get('window').width,
+      y: 0,
+    });
     this.state = {
       curuser: '',
       first_name: '',
@@ -41,6 +72,7 @@ export default class CreateInviteScreen extends React.Component {
       squad_card_show: false,
       found_user_show: false,
       not_found_show: false,
+      showDrawer: false,
       chosen_user: '',
       chosen_squad: '',
       acceptor_email: '',
@@ -49,6 +81,8 @@ export default class CreateInviteScreen extends React.Component {
   }
 
   componentWillMount() {
+    this.props.navigation.setParams({ toggleDrawer: this.toggleDrawer });
+
     const { params } = this.props.navigation.state;
     const cursquad = params.cursquad;
     this.setState({ chosen_squad: cursquad });
@@ -220,6 +254,7 @@ export default class CreateInviteScreen extends React.Component {
               invite_type: 'internal',
               acceptor_email: this.state.chosen_user.email.trim().toLowerCase(),
               status: 'new',
+              unseen: true,
             };
           } else {
             body = {
@@ -230,6 +265,7 @@ export default class CreateInviteScreen extends React.Component {
               invite_type: 'external',
               acceptor_email: this.state.acceptor_email.trim().toLowerCase(),
               status: 'new',
+              unseen: true,
             };
           }
 
@@ -238,6 +274,27 @@ export default class CreateInviteScreen extends React.Component {
             .ref('invites/')
             .push(body)
             .then(function() {
+              //Increase unseen invites for acceptor
+              firebase
+                .database()
+                .ref('users/')
+                .orderByChild('email')
+                .equalTo(acceptor_email.trim().toLowerCase())
+                .once('value', snapshot => {
+                  var invites_unseen = 1;
+                  if (
+                    snapshot.val().invites_unseen !== undefined &&
+                    snapshot.val().invites_unseen !== null
+                  ) {
+                    invites_unseen = snapshot.val().invites_unseen + 1;
+                  }
+                  firebase
+                    .database()
+                    .ref('users/')
+                    .child(Object.keys(snapshot.val())[0])
+                    .child('invites_unseen')
+                    .set(invites_unseen);
+                });
               NavigationService.navigate('MenuScreen');
             })
             .then(function() {
@@ -318,83 +375,6 @@ export default class CreateInviteScreen extends React.Component {
           });
       }
     }
-
-    /*if (send_invite) {
-        var body = {
-          sender_id: this.state.curuser.key,
-          acceptor_id: this.state.chosen_user.key,
-          squad_id: this.state.chosen_squad.key,
-          squad_name: this.state.chosen_squad.name,
-          invite_type: 'internal',
-          acceptor_email: this.state.chosen_user.email,
-          status: 'new',
-        };
-
-        /*var invite_post = firebase
-          .database()
-          .ref('invites/')
-          .push(body)
-          .then(function() {
-            NavigationService.navigate('MenuScreen');
-          })
-          .then(function() {
-            alert('Your invite has been sent!');
-          })
-          .catch(function(error) {
-            var errorCode = error.code;
-            var errorMessage = error.message;
-            alert(errorCode + ': ' + errorMessage);
-          });
-      } else {
-        alert('Sorry, that person is already part of that squad.');
-      }
-    } else {
-      const rootRef = firebase.database().ref();
-      var usersRef = rootRef
-        .child('users')
-        .orderByChild('email')
-        .equalTo(this.state.acceptor_email)
-        .on('value', snapshot => {
-          for (let i = 0; i < snapshot.val().squads.length; i++) {
-            if (
-              snapshot.val().squads[i].squad_id === this.state.chosen_squad.key
-            ) {
-              send_invite = false;
-              break;
-            }
-          }
-
-          if (send_invite) {
-            body = {
-              sender_id: this.state.curuser.key,
-              acceptor_id: null,
-              squad_id: this.state.chosen_squad.key,
-              squad_name: this.state.chosen_squad.name,
-              invite_type: 'external',
-              acceptor_email: this.state.acceptor_email,
-              status: 'new',
-            };
-
-            /*var invite_post = firebase
-              .database()
-              .ref('invites/')
-              .push(body)
-              .then(function() {
-                NavigationService.navigate('MenuScreen');
-              })
-              .then(function() {
-                alert('Your invite has been sent!');
-              })
-              .catch(function(error) {
-                var errorCode = error.code;
-                var errorMessage = error.message;
-                alert(errorCode + ': ' + errorMessage);
-              });
-          } else {
-            alert('Sorry, that person is already part of that squad.');
-          }
-        });
-    }*/
   }
 
   noAccountOption() {
@@ -410,6 +390,24 @@ export default class CreateInviteScreen extends React.Component {
       chosen_squad: cursquad,
     });
   }
+
+  toggleDrawer = () => {
+    if (this.state.showDrawer === false) {
+      this.setState({
+        showDrawer: true,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: 0, y: 0 },
+      }).start();
+    } else {
+      this.setState({
+        showDrawer: false,
+      });
+      Animated.spring(this.moveAnimation, {
+        toValue: { x: Dimensions.get('window').width, y: 0 },
+      }).start();
+    }
+  };
 
   render() {
     var isEnabled = 'false';
@@ -430,177 +428,190 @@ export default class CreateInviteScreen extends React.Component {
     }
 
     return (
-      <LinearGradient
-        height="100%"
-        colors={['#5B4FFF', '#D616CF']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 1 }}>
-        <View style={{ height: Dimensions.get('window').height }}>
-          {this.state.search_show ? (
-            <React.Fragment style={{ position: 'absolute' }}>
-              <View style={{ marginTop: 40 }}>
-                <TextInput
-                  style={styles.user_input}
-                  placeholder="First Name"
-                  onChangeText={first_name => this.setState({ first_name })}
-                  value={this.state.first_name}
-                />
-                <TextInput
-                  style={styles.user_input}
-                  placeholder="Last Name"
-                  onChangeText={last_name => this.setState({ last_name })}
-                  value={this.state.last_name}
-                />
-                <TouchableOpacity
-                  onPress={this.searchUser.bind(this)}
-                  disabled={isEnabled}>
-                  <View style={styles.customButton}>
-                    <Text
-                      style={{
-                        color: buttonColor,
-                        fontSize: 18,
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                      }}>
-                      Search For User
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={this.noAccountOption.bind(this)}>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 'bold',
-                      color: 'white',
-                      marginTop: 10,
-                      alignContent: 'center',
-                      alignSelf: 'center',
-                    }}>
-                    I know this person does not have an account
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </React.Fragment>
-          ) : null}
-          {this.state.found_card_show ? (
-            <Card style={styles.resultsCard}>
-              <FlatList
-                style={{ padding: 10 }}
-                data={this.state.found_users}
-                renderItem={({ item }) => (
-                  <React.Fragment>
-                    {item.key !== firebase.auth().currentUser.uid ? (
-                      <React.Fragment>
-                        <TouchableOpacity
-                          onPress={this.chooseUser.bind(this, item)}>
-                          <Text style={styles.info}>
-                            {item.first_name} {item.last_name}
-                          </Text>
-                          <Text style={styles.generic}>{item.email}</Text>
-                          <Text style={styles.generic}>{item.zip}</Text>
-                        </TouchableOpacity>
-                        <View style={styles.line} />
-                      </React.Fragment>
-                    ) : null}
-                  </React.Fragment>
-                )}
-              />
-            </Card>
-          ) : null}
-          {this.state.final_message_show ? (
-            <View
-              style={[
-                {
-                  height: '100%',
-                  alignContent: 'center',
-                  alignSelf: 'center',
-                  marginTop: Dimensions.get('window').height * 0.2,
-                  position: 'absolute',
-                },
-              ]}>
-              <Text style={styles.finalMessage}>
-                You're sending an invite to
-              </Text>
-              {this.state.found_user_show ? (
-                <React.Fragment>
-                  <Text style={styles.finalMessage}>
-                    {this.state.chosen_user.first_name}{' '}
-                    {this.state.chosen_user.last_name}
-                  </Text>
-                </React.Fragment>
-              ) : (
-                <TextInput
-                  style={styles.user_input}
-                  placeholder="Email"
-                  onChangeText={acceptor_email =>
-                    this.setState({ acceptor_email })
-                  }
-                  value={this.state.acceptor_email}
-                />
-              )}
-              {this.state.chosen_squad ? (
-                <React.Fragment>
-                  <Text style={styles.finalMessage}>to join the</Text>
-                  <Text style={styles.finalMessage}>
-                    {this.state.chosen_squad.name} Squad
-                  </Text>
+      <React.Fragment>
+        <LinearGradient
+          height="100%"
+          colors={['#5B4FFF', '#D616CF']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 1 }}>
+          <View style={{ height: Dimensions.get('window').height * .8 }}>
+            {this.state.search_show ? (
+              <React.Fragment style={{ position: 'absolute' }}>
+                <View style={{ marginTop: 40 }}>
+                  <TextInput
+                    style={styles.user_input}
+                    placeholder="First Name"
+                    onChangeText={first_name => this.setState({ first_name })}
+                    value={this.state.first_name}
+                  />
+                  <TextInput
+                    style={styles.user_input}
+                    placeholder="Last Name"
+                    onChangeText={last_name => this.setState({ last_name })}
+                    value={this.state.last_name}
+                  />
                   <TouchableOpacity
-                    onPress={this.createInvite.bind(this)}
-                    disabled={
-                      (this.state.acceptor_email.length > 0 &&
-                        this.state.acceptor_email.includes('@')) ||
-                      this.state.chosen_user
-                        ? ''
-                        : 'false'
-                    }>
+                    onPress={this.searchUser.bind(this)}
+                    disabled={isEnabled}>
                     <View style={styles.customButton}>
                       <Text
                         style={{
+                          color: buttonColor,
+                          fontSize: 18,
                           fontWeight: 'bold',
-                          color:
-                            (this.state.acceptor_email.length > 0 &&
-                              this.state.acceptor_email.includes('@')) ||
-                            this.state.chosen_user
-                              ? 'white'
-                              : 'grey',
-                          fontSize: 20,
-                          alignContent: 'center',
-                          alignSelf: 'center',
                           textAlign: 'center',
                         }}>
-                        Send Invite
+                        Search For User
                       </Text>
                     </View>
                   </TouchableOpacity>
-                </React.Fragment>
-              ) : (
-                <TouchableOpacity onPress={this.getSquads.bind(this)}>
-                  <View style={styles.customButton}>
-                    <Text style={styles.buttonText}>Select Squad</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null}
-          {this.state.squad_card_show ? (
-            <Card style={styles.resultsCard}>
-              <FlatList
-                style={{ padding: 10 }}
-                data={this.state.found_squads}
-                renderItem={({ item }) => (
+                  <TouchableOpacity onPress={this.noAccountOption.bind(this)}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 'bold',
+                        color: 'white',
+                        marginTop: 10,
+                        alignContent: 'center',
+                        alignSelf: 'center',
+                      }}>
+                      I know this person does not have an account
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </React.Fragment>
+            ) : null}
+            {this.state.found_card_show ? (
+              <Card style={styles.resultsCard}>
+                <FlatList
+                  style={{ padding: 10 }}
+                  data={this.state.found_users}
+                  renderItem={({ item }) => (
+                    <React.Fragment>
+                      {item.key !== firebase.auth().currentUser.uid ? (
+                        <React.Fragment>
+                          <TouchableOpacity
+                            onPress={this.chooseUser.bind(this, item)}>
+                            <Text style={styles.info}>
+                              {item.first_name} {item.last_name}
+                            </Text>
+                            <Text style={styles.generic}>{item.email}</Text>
+                            <Text style={styles.generic}>{item.zip}</Text>
+                          </TouchableOpacity>
+                          <View style={styles.line} />
+                        </React.Fragment>
+                      ) : null}
+                    </React.Fragment>
+                  )}
+                />
+              </Card>
+            ) : null}
+            {this.state.final_message_show ? (
+              <View
+                style={[
+                  {
+                    height: '100%',
+                    alignContent: 'center',
+                    alignSelf: 'center',
+                    marginTop: Dimensions.get('window').height * 0.2,
+                    position: 'absolute',
+                  },
+                ]}>
+                <Text style={styles.finalMessage}>
+                  You're sending an invite to
+                </Text>
+                {this.state.found_user_show ? (
                   <React.Fragment>
-                    <TouchableOpacity
-                      onPress={this.chooseSquad.bind(this, item)}>
-                      <Text style={styles.info}>{item.name}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.squadLine} />
+                    <Text style={styles.finalMessage}>
+                      {this.state.chosen_user.first_name}{' '}
+                      {this.state.chosen_user.last_name}
+                    </Text>
                   </React.Fragment>
+                ) : (
+                  <TextInput
+                    style={styles.user_input}
+                    placeholder="Email"
+                    onChangeText={acceptor_email =>
+                      this.setState({ acceptor_email })
+                    }
+                    value={this.state.acceptor_email}
+                  />
                 )}
-              />
-            </Card>
-          ) : null}
-        </View>
-      </LinearGradient>
+                {this.state.chosen_squad ? (
+                  <React.Fragment>
+                    <Text style={styles.finalMessage}>to join the</Text>
+                    <Text style={styles.finalMessage}>
+                      {this.state.chosen_squad.name} Squad
+                    </Text>
+                    <TouchableOpacity
+                      onPress={this.createInvite.bind(this)}
+                      disabled={
+                        (this.state.acceptor_email.length > 0 &&
+                          this.state.acceptor_email.includes('@')) ||
+                        this.state.chosen_user
+                          ? ''
+                          : 'false'
+                      }>
+                      <View style={styles.customButton}>
+                        <Text
+                          style={{
+                            fontWeight: 'bold',
+                            color:
+                              (this.state.acceptor_email.length > 0 &&
+                                this.state.acceptor_email.includes('@')) ||
+                              this.state.chosen_user
+                                ? 'white'
+                                : 'grey',
+                            fontSize: 20,
+                            alignContent: 'center',
+                            alignSelf: 'center',
+                            textAlign: 'center',
+                          }}>
+                          Send Invite
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                ) : (
+                  <TouchableOpacity onPress={this.getSquads.bind(this)}>
+                    <View style={styles.customButton}>
+                      <Text style={styles.buttonText}>Select Squad</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
+            {this.state.squad_card_show ? (
+              <Card style={styles.resultsCard}>
+                <FlatList
+                  style={{ padding: 10 }}
+                  data={this.state.found_squads}
+                  renderItem={({ item }) => (
+                    <React.Fragment>
+                      <TouchableOpacity
+                        onPress={this.chooseSquad.bind(this, item)}>
+                        <Text style={styles.info}>{item.name}</Text>
+                      </TouchableOpacity>
+                      <View style={styles.squadLine} />
+                    </React.Fragment>
+                  )}
+                />
+              </Card>
+            ) : null}
+          </View>
+        </LinearGradient>
+        <Animated.View
+          style={[
+            {
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height * 0.8,
+              position: 'absolute',
+            },
+            this.moveAnimation.getLayout(),
+          ]}>
+          <BottomMenu curuser={this.state.curuser} action={this.toggleDrawer} />
+        </Animated.View>
+      </React.Fragment>
     );
   }
 }
@@ -628,7 +639,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     shadowOffset: { width: 4, height: 4 },
     shadowColor: 'black',
-    shadowOpacity: .5,
+    shadowOpacity: 0.5,
   },
   resultsCard: {
     width: Dimensions.get('window').width * 0.75,
@@ -641,7 +652,7 @@ const styles = StyleSheet.create({
     marginTop: Dimensions.get('window').height * 0.2,
     shadowOffset: { width: 12, height: 12 },
     shadowColor: 'black',
-    shadowOpacity: .15,
+    shadowOpacity: 0.15,
   },
   info: {
     fontSize: 20,

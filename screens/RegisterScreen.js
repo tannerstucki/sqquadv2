@@ -46,6 +46,7 @@ class RegisterScreen extends React.Component {
             last_name_lower: this.state.last_name.toLowerCase().trim(),
             email: this.state.email.toLowerCase().trim(),
             zip: this.state.zip.trim(),
+            status: 'active',
           });
       })
       .then(function() {
@@ -81,65 +82,72 @@ class RegisterScreen extends React.Component {
       text_color = 'white';
     }
     return (
-      <LinearGradient
-        colors={['#5B4FFF', '#D616CF']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 1 }}>
-        <ScrollView style={styles.fill}>
-          <Image
-            style={styles.logo}
-            source={require('../assets/BigWhite.png')}
-          />
-          <TextInput
-            style={styles.user_input}
-            placeholder="First Name"
-            onChangeText={first_name => this.setState({ first_name })}
-            value={this.state.first_name}
-          />
-          <TextInput
-            style={styles.user_input}
-            placeholder="Last Name"
-            onChangeText={last_name => this.setState({ last_name })}
-            value={this.state.last_name}
-          />
-          <TextInput
-            style={styles.user_input}
-            placeholder="Zip Code"
-            onChangeText={zip => this.setState({ zip })}
-            value={this.state.zip}
-          />
-          <TextInput
-            style={styles.user_input}
-            placeholder="Email"
-            onChangeText={email => this.setState({ email })}
-            value={this.state.email}
-          />
-          <TextInput
-            style={styles.user_input}
-            placeholder="Password"
-            secureTextEntry={true}
-            onChangeText={password => this.setState({ password })}
-            value={this.state.password}
-          />
-          <TouchableOpacity
-            onPress={this.onRegisterPress.bind(this)}
-            disabled={isEnabled}>
-            <View style={styles.customButton}>
-              <Text
-                style={{
-                  color: text_color,
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                }}>
-                Create Account
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={this.openLogin.bind(this)}>
-            <Text style={styles.linkText}>Already have an account?</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </LinearGradient>
+      <React.Fragment>
+        <LinearGradient
+          colors={['#5B4FFF', '#D616CF']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 1 }}>
+          <ScrollView style={styles.fill}>
+            <Image
+              style={styles.logo}
+              source={require('../assets/BigWhite.png')}
+            />
+            <TextInput
+              style={styles.user_input}
+              placeholder="First Name"
+              onChangeText={first_name => this.setState({ first_name })}
+              value={this.state.first_name}
+            />
+            <TextInput
+              style={styles.user_input}
+              placeholder="Last Name"
+              onChangeText={last_name => this.setState({ last_name })}
+              value={this.state.last_name}
+            />
+            <TextInput
+              style={styles.user_input}
+              placeholder="Zip Code"
+              onChangeText={zip => this.setState({ zip })}
+              value={this.state.zip}
+            />
+            <TextInput
+              style={styles.user_input}
+              placeholder="Email"
+              onChangeText={email => this.setState({ email })}
+              value={this.state.email}
+            />
+            <TextInput
+              style={styles.user_input}
+              placeholder="Password"
+              secureTextEntry={true}
+              onChangeText={password => this.setState({ password })}
+              value={this.state.password}
+            />
+            <TouchableOpacity
+              onPress={this.onRegisterPress.bind(this)}
+              disabled={isEnabled}>
+              <View style={styles.customButton}>
+                <Text
+                  style={{
+                    color: text_color,
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                  }}>
+                  Create Account
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={this.openLogin.bind(this)}>
+              <Text style={styles.linkText}>Already have an account?</Text>
+            </TouchableOpacity>
+            <View
+              style={{
+                marginBottom: Dimensions.get('window').height * 0.5,
+              }}
+            />
+          </ScrollView>
+        </LinearGradient>
+      </React.Fragment>
     );
   }
 }
@@ -159,6 +167,9 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').height * 0.2,
     alignSelf: 'center',
     margin: 20,
+    shadowOffset: { width: 5, height: 5 },
+    shadowColor: 'black',
+    shadowOpacity: 0.25,
   },
   user_input: {
     height: 40,
@@ -189,10 +200,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     alignSelf: 'center',
     margin: 15,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
 });
